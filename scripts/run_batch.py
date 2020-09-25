@@ -70,7 +70,7 @@ someSuccessful = False
 idx = 0
 for exp_id in exp_iter:
 	exp_iter.iteration =  exp_iter.iteration + 1
-	print(f"===>>> {exp_id} progess {round(exp_iter.iteration/exp_iter._exp_size * 100)}%")
+	print(f"===>>> {exp_id} progess {round(exp_iter.iteration/exp_iter._exp_size * 100)}% total #{exp_iter._exp_size}")
 	try:
 		result_val = exp_runner.run_experiment(exp_id, progplat, board_type, branchname, conn_mode=args.conn_mode, force_results=args.force_results)
 		someSuccessful = True
