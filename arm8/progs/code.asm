@@ -1,7 +1,7 @@
-	ldr x2, [x18,x9]
-	ldr x21, [x28, #0]
-	cmp x18, x21
+	ldr x12, [x2,x19]
+	ldr x9, [x24, #0]
+	cmp x2, x9
 	b.eq #0xC
-	ldr x16, [x2, #50]
+	ldr x25, [x12, #29]
 	b #0x8
-	ldr x3, [x5, #4]
+	ldr x26, [x1, #16]
