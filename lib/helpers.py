@@ -182,6 +182,9 @@ def gen_readable(regmap):
 	s = ""
 	for reg in regmap.keys():
 		val = regmap[reg]
+		if isinstance(val,dict):
+			continue
+
 		assert val < 2**64
 		assert val >= 0
 		val_str = "0x" + val.to_bytes(8, byteorder='big').hex()
