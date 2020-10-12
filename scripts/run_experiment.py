@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("exp_id", help="id of experiment: arm8/exps2/exp_cache_multiw/{EXPERIMENT_HASH}")
 
 parser.add_argument("-ep", "--embexp_path", help="path to embexp repositories")
-parser.add_argument("-br", "--branchname", help="branch of ProgPlatform, default is master", choices=['scamv', 'scamv-rpi4'])
+parser.add_argument("-br", "--branchname", help="branch of ProgPlatform, default is master", choices=['scamv', 'scamv-rpi4', 'scamv_rpi3'])
 parser.add_argument("-bt", "--board_type", help="broad_type", choices=['rpi3', 'rpi4'])
 parser.add_argument("-cm", "--conn_mode", help="connection mode: try (default), run, reset. try for trying an active connection, otherwise do ad-hoc connect (runlog_try, default). reset for connect with reset (runlog_reset). run for simply using an active connection (runlog).")
 
