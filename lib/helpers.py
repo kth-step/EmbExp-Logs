@@ -108,7 +108,7 @@ def gen_input_code_mem(memmap, regs, asm):
 	
 def uncacheable(cacheable_addr):
     assert 0x80000000 < cacheable_addr < 2*(0x80000000)
-    return cacheable_addr #- 0x80000000
+    return cacheable_addr - 0x80000000
 
 def mem_parse(memmap):
 	flatten  = lambda l: [item for sublist in l for item in sublist]
@@ -128,7 +128,7 @@ def mem_parse(memmap):
                                        partitioned_based_on_pattern))
 	return (flatten (address_and_offset_value))
 	
-def gen_input_code(inputname, regmap):
+def gen_input_code(regmap):
 	asm = ""	
 	memmap={}
 
@@ -146,7 +146,7 @@ def gen_input_code(inputname, regmap):
 	memorysetter = asm2 + asm3
 	regsetter = asm
 
-	filecontents = f"__{inputname}_set_mem:\n{memorysetter}\n\tret\n__{inputname}_set_reg:\n{regsetter}\n\tret\n"
+	filecontents = f"{memorysetter}\n\n{regsetter}\n"
 
 	return filecontents
 
