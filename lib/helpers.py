@@ -61,13 +61,16 @@ def writefile_or_compare(forcenew, filename, content, errmsg):
 		raise Exception(f"file {filename} has unexpected content: {errmsg}")
 
 def reg_gen(regs):
-	regx = "x"+str(random.randint(0,31))
-	regw = "w"+str(random.randint(0,31))
+	#regx = "x"+str(random.randint(0,31))
+	#regw = "w"+str(random.randint(0,31))
+	regx = "x0"
+	regw = "w1"
 
-	if regx not in regs:
-		return [regw, regx]
-	else:
-		return reg_gen(regs)	
+	#if regx not in regs:
+	#	return [regw, regx]
+	#else:
+	#	return reg_gen(regs)	
+	return [regw, regx]
 		
 def gen_input_code_reg(regmap, asm):
 	use_constmov = True
@@ -104,7 +107,8 @@ def gen_input_code_mem(memmap, regs, asm):
 	return asm
 	
 def uncacheable(cacheable_addr):
-    return cacheable_addr - 0x40000000
+    assert 0x80000000 < cacheable_addr < 2*(0x80000000)
+    return cacheable_addr #- 0x80000000
 
 def mem_parse(memmap):
 	flatten  = lambda l: [item for sublist in l for item in sublist]
@@ -124,7 +128,7 @@ def mem_parse(memmap):
                                        partitioned_based_on_pattern))
 	return (flatten (address_and_offset_value))
 	
-def gen_input_code(regmap):
+def gen_input_code(inputname, regmap):
 	asm = ""	
 	memmap={}
 
@@ -133,10 +137,18 @@ def gen_input_code(regmap):
 	del regmap['mem']
 
 	asm = gen_input_code_reg(regmap, asm)
+
 	regs = reg_gen(regmap.keys())
 	mem_parsed = mem_parse(memmap)
-	asm += gen_input_code_mem(mem_parsed, regs, "")
-	return asm
+	asm2 = gen_input_code_mem(mem_parsed, regs, "")
+
+	asm3 = "\tmov x0, #0\n" + "\tmov x1, #0\n"
+	memorysetter = asm2 + asm3
+	regsetter = asm
+
+	filecontents = f"__{inputname}_set_mem:\n{memorysetter}\n\tret\n__{inputname}_set_reg:\n{regsetter}\n\tret\n"
+
+	return filecontents
 
 def gen_readable(regmap):
 	s = ""
