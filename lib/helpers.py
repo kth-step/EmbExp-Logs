@@ -60,15 +60,6 @@ def writefile_or_compare(forcenew, filename, content, errmsg):
 	if not comparefile(filename, content, True):
 		raise Exception(f"file {filename} has unexpected content: {errmsg}")
 
-def reg_gen(regs):
-	regx = "x"+str(random.randint(0,31))
-	regw = "w"+str(random.randint(0,31))
-
-	if regx not in regs:
-		return [regw, regx]
-	else:
-		return reg_gen(regs)	
-		
 def gen_input_code_reg(regmap, asm):
 	use_constmov = True
 	for reg in regmap.keys():
@@ -96,15 +87,57 @@ def gen_strb_src_reg(regmap):
 	asm += f"\t// {reg} = 0x{val_str}\n{asm_val}\n"
 	return asm
 
-def gen_input_code_mem(memmap, regs, asm):
-	for itm in memmap:
-		asm += gen_strb_src_reg({regs[0]:itm[2]})
-		asm += gen_input_code_reg({regs[1]:itm[0]}, "")
-		asm += f"\tstrb {regs[0]}, [{regs[1]}, {str(itm[1])}]\n"
+def gen_input_code_mem(memmap, regs):
+	if regs != ["w1", "x0"]:
+		raise Exception("need those registers, they are hardcoded!")
+	asm = ""
+
+	# group the base addresses
+	memmap_map = {}
+	for (baseaddr,offset,value) in memmap:
+		try:
+			basemap = memmap_map[baseaddr]
+		except KeyError:
+			basemap = {}
+		if offset in list(basemap.keys()):
+			raise Exception("this should not happen!")
+		basemap[offset] = value
+		memmap_map[baseaddr] = basemap
+
+	for baseaddr in memmap_map:
+		basemap = memmap_map[baseaddr]
+		# do we have "all" offsets to make 64bit value?
+		if all((x in list(basemap.keys())) for x in range(0,8)):
+			# construct bytes bs
+			valbytes = []
+			for x in range(0,8):
+				valbytes.append(basemap[x])
+			valbytes.reverse()
+			bs = bytes(valbytes)
+
+			adr_str = (baseaddr).to_bytes(8, byteorder='big').hex()
+			asm += f"\t// MEM[0x{adr_str}] =LONG= 0x{bs.hex()}\n"
+
+			asm += gen_input_code_reg({"x1":(int.from_bytes(bs, byteorder='big'))}, "")
+			asm += gen_input_code_reg({"x0":baseaddr}, "")
+			asm += f"\tstr x1, [x0]\n\n"
+		else:
+			# else, we need to export them individually
+			for offset in basemap:
+				value = basemap[offset]
+
+				adr_str = (baseaddr+offset).to_bytes(8, byteorder='big').hex()
+				val_str = value.to_bytes(1, byteorder='big').hex()
+				asm += f"\t// MEM[0x{adr_str}] =BYTE= 0x{val_str}\n"
+
+				asm += gen_strb_src_reg({regs[0]:value})
+				asm += gen_input_code_reg({regs[1]:baseaddr}, "")
+				asm += f"\tstrb {regs[0]}, [{regs[1]}, {str(offset)}]\n\n"
 	return asm
 	
 def uncacheable(cacheable_addr):
-    return cacheable_addr - 0x40000000
+    assert 0x80000000 < cacheable_addr < 2*(0x80000000)
+    return cacheable_addr - 0x80000000
 
 def mem_parse(memmap):
 	flatten  = lambda l: [item for sublist in l for item in sublist]
@@ -133,10 +166,17 @@ def gen_input_code(regmap):
 	del regmap['mem']
 
 	asm = gen_input_code_reg(regmap, asm)
-	regs = reg_gen(regmap.keys())
+
 	mem_parsed = mem_parse(memmap)
-	asm += gen_input_code_mem(mem_parsed, regs, "")
-	return asm
+	asm2 = gen_input_code_mem(mem_parsed, ["w1", "x0"])
+
+	asm3 = "\n\t// reset the temporary registers to zero\n\tmov x0, #0\n" + "\tmov x1, #0\n"
+	memorysetter = asm2 + asm3
+	regsetter = asm
+
+	filecontents = f"{memorysetter}\n\n{regsetter}\n"
+
+	return filecontents
 
 def gen_readable(regmap):
 	s = ""
