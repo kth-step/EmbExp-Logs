@@ -19,7 +19,7 @@ class Experiment(object):
 		assert len(exp_id.split('/')) == 4
 		self.exp_id = exp_id
 		self.exp_path = get_logs_path(exp_id)
-		assert os.path.isdir(self.exp_path)
+		#assert os.path.isdir(self.exp_path)
 
 	def create(exp_id, files):
 		exp_path = get_logs_path(exp_id)
