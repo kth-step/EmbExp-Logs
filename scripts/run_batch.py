@@ -14,6 +14,7 @@ import exp_finder
 # parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("-ec", "--exp_class", help="class of experiment: arm8/exps2/exp_cache_multiw, takes from stdin if this is not provided")
+parser.add_argument("-br", "--branchname", help="branch of ProgPlatform, default is master", choices=['scamv', 'scamv-rpi4', 'scamv_rpi3'])
 parser.add_argument("-bt", "--board_type", help="broad_type", choices=['rpi3', 'rpi4'])
 
 parser.add_argument("-am", "--auto_mode", help="automatic mode: all, fix (default). run for all present experiments or just fix the unfinished ones that run with the current master branch of ProgPlatform (no result file)")
@@ -41,6 +42,7 @@ if do_auto:
 progplat = progplatform.get_embexp_ProgPlatform(args.embexp_path)
 
 board_type = args.board_type
+branchname = args.branchname
 auto_mode = "fix" if args.auto_mode == None else args.auto_mode
 
 # select experiments (could be made as iterator to simplify the code and not require processing to complete in the beginning, i guess)
@@ -52,7 +54,8 @@ if not do_auto:
 else:
 	assert board_type == "rpi3" or board_type == "rpi4"
 
-	branchname = progplatform.get_default_branch(board_type)
+	if branchname == None:
+		branchname = progplatform.get_default_branch()
 	progplat_hash = progplat.get_branch_commit_hash(branchname)
 
 	if auto_mode == "fix":
@@ -65,8 +68,10 @@ else:
 logging.info(f"running all selected experiments")
 successful = True
 someSuccessful = False
+idx = 0
 for exp_id in exp_iter:
-	print(f"===>>> {exp_id}")
+	exp_iter.iteration =  exp_iter.iteration + 1
+	print(f"===>>> {exp_id} progess {round(exp_iter.iteration/exp_iter._exp_size * 100)}% total #{exp_iter._exp_size}")
 	try:
 		result_val = exp_runner.run_experiment(exp_id, progplat, board_type, branchname, conn_mode=args.conn_mode, force_results=args.force_results)
 		someSuccessful = True

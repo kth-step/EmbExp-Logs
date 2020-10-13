@@ -15,7 +15,6 @@ from exp_runner import *
 # parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--arch_id",       help="architecture id, default: arm8")
-parser.add_argument("-bt", "--board_type", help="broad_type", choices=['rpi3', 'rpi4'])
 parser.add_argument("-ri", "--run_id", help="id of run made up of ProgPlatform commit hash and board type, for example: 13700076ab79095f15468f0c489fa587ac225626.rpi3")
 
 parser.add_argument("-pp", "--print_progs",           help="print the list of programs", action="store_true")
@@ -35,20 +34,15 @@ else:
 	logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
 arch_id = args.arch_id
-board_type = args.board_type
-# defaults
 if arch_id == None:
 	arch_id = "arm8"
-if board_type == None:
-	if arch_id == "arm8":
-		board_type = "rpi3"
 
 # obtain run_id
 run_id = args.run_id
 if run_id == None:
+	branchname = progplatform.get_default_branch()
+	board_type = "rpi3"
 	assert arch_id == "arm8"
-	assert board_type == "rpi3" or board_type == "rpi4"
-	branchname = progplatform.get_default_branch(board_type)
 	progplat_hash = progplatform.get_embexp_ProgPlatform(None).get_branch_commit_hash(branchname)
 	run_id = experiment.get_run_id(progplat_hash, board_type)
 

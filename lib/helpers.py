@@ -29,7 +29,7 @@ def call_cmd(cmdl, error_msg, show_output = True, show_error = True):
 	error_file = None
 	if not show_error:
 		error_file = subprocess.DEVNULL
-	res = subprocess.call(cmdl, stdout=output_file, stderr=error_file)
+	res = subprocess.call(cmdl, stdout=output_file, stderr=error_file, shell=False)
 	if res != 0:
 		raise Exception(f"command {cmdl} not successful: {res} : {error_msg}")
 
@@ -60,18 +60,6 @@ def writefile_or_compare(forcenew, filename, content, errmsg):
 	if not comparefile(filename, content, True):
 		raise Exception(f"file {filename} has unexpected content: {errmsg}")
 
-def reg_gen(regs):
-	#regx = "x"+str(random.randint(0,31))
-	#regw = "w"+str(random.randint(0,31))
-	regx = "x0"
-	regw = "w1"
-
-	#if regx not in regs:
-	#	return [regw, regx]
-	#else:
-	#	return reg_gen(regs)	
-	return [regw, regx]
-		
 def gen_input_code_reg(regmap, asm):
 	use_constmov = True
 	for reg in regmap.keys():
@@ -99,13 +87,54 @@ def gen_strb_src_reg(regmap):
 	asm += f"\t// {reg} = 0x{val_str}\n{asm_val}\n"
 	return asm
 
-def gen_input_code_mem(memmap, regs, asm):
-	for itm in memmap:
-		asm += gen_strb_src_reg({regs[0]:itm[2]})
-		asm += gen_input_code_reg({regs[1]:itm[0]}, "")
-		asm += f"\tstrb {regs[0]}, [{regs[1]}, {str(itm[1])}]\n"
-	return asm
+def gen_input_code_mem(memmap, regs):
+	if regs != ["w1", "x0"]:
+		raise Exception("need those registers, they are hardcoded!")
+	asm = ""
 
+	# group the base addresses
+	memmap_map = {}
+	for (baseaddr,offset,value) in memmap:
+		try:
+			basemap = memmap_map[baseaddr]
+		except KeyError:
+			basemap = {}
+		if offset in list(basemap.keys()):
+			raise Exception("this should not happen!")
+		basemap[offset] = value
+		memmap_map[baseaddr] = basemap
+
+	for baseaddr in memmap_map:
+		basemap = memmap_map[baseaddr]
+		# do we have "all" offsets to make 64bit value?
+		if all((x in list(basemap.keys())) for x in range(0,8)):
+			# construct bytes bs
+			valbytes = []
+			for x in range(0,8):
+				valbytes.append(basemap[x])
+			valbytes.reverse()
+			bs = bytes(valbytes)
+
+			adr_str = (baseaddr).to_bytes(8, byteorder='big').hex()
+			asm += f"\t// MEM[0x{adr_str}] =LONG= 0x{bs.hex()}\n"
+
+			asm += gen_input_code_reg({"x1":(int.from_bytes(bs, byteorder='big'))}, "")
+			asm += gen_input_code_reg({"x0":baseaddr}, "")
+			asm += f"\tstr x1, [x0]\n\n"
+		else:
+			# else, we need to export them individually
+			for offset in basemap:
+				value = basemap[offset]
+
+				adr_str = (baseaddr+offset).to_bytes(8, byteorder='big').hex()
+				val_str = value.to_bytes(1, byteorder='big').hex()
+				asm += f"\t// MEM[0x{adr_str}] =BYTE= 0x{val_str}\n"
+
+				asm += gen_strb_src_reg({regs[0]:value})
+				asm += gen_input_code_reg({regs[1]:baseaddr}, "")
+				asm += f"\tstrb {regs[0]}, [{regs[1]}, {str(offset)}]\n\n"
+	return asm
+	
 def uncacheable(cacheable_addr):
     assert 0x80000000 < cacheable_addr < 2*(0x80000000)
     return cacheable_addr - 0x80000000
@@ -138,11 +167,10 @@ def gen_input_code(regmap):
 
 	asm = gen_input_code_reg(regmap, asm)
 
-	regs = reg_gen(regmap.keys())
 	mem_parsed = mem_parse(memmap)
-	asm2 = gen_input_code_mem(mem_parsed, regs, "")
+	asm2 = gen_input_code_mem(mem_parsed, ["w1", "x0"])
 
-	asm3 = "\tmov x0, #0\n" + "\tmov x1, #0\n"
+	asm3 = "\n\t// reset the temporary registers to zero\n\tmov x0, #0\n" + "\tmov x1, #0\n"
 	memorysetter = asm2 + asm3
 	regsetter = asm
 
@@ -154,6 +182,15 @@ def gen_readable(regmap):
 	s = ""
 	for reg in regmap.keys():
 		val = regmap[reg]
+		if isinstance(val,dict):
+			print("MEM = {")
+			for addr_s in val:
+				v = val[addr_s].to_bytes(1, byteorder='big').hex()
+				a = int(addr_s).to_bytes(8, byteorder='big').hex()
+				print(f"\t0x{a} => 0x{v}")
+			print("}")
+			continue
+
 		assert val < 2**64
 		assert val >= 0
 		val_str = "0x" + val.to_bytes(8, byteorder='big').hex()
@@ -217,12 +254,7 @@ def parse_uart_single_cache_experiment(lines):
 
 def parse_uart_single_cache_experiment_simp(lines):
 	sets = []
-	num_sets = 0
-	for line in lines:
-		parts = line.split("::")
-		s = int(parts[0].strip())
-		num_sets = max(num_sets, s+1)
-	for s in range(0,num_sets):
+	for s in range(0,256):
 		sets.append({"set": s, "lines": []})
 	for line in lines:
 		parts = line.split("::")

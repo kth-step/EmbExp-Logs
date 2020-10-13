@@ -66,6 +66,8 @@ class ExpsIter:
 		if self.poll_max_rounds < 1:
 			self.poll_max_rounds = 1
 		self._exp_list_iter = iter([])
+		self._exp_size = 0
+		self.iteration = 0
 
 	def update_exps_list(self):
 		for i in range(self.poll_max_rounds):
@@ -77,6 +79,7 @@ class ExpsIter:
 			if len(exp_list) > 0:
 				break
 		self._exp_list_iter = iter(exp_list)
+		self._exp_size = len(exp_list)
 
 	def __iter__(self):
 		return self
@@ -85,6 +88,7 @@ class ExpsIter:
 		try:
 			next_exp = self._exp_list_iter.__next__()
 		except StopIteration:
+			self.iteration = 0
 			self.update_exps_list()
 			next_exp = self._exp_list_iter.__next__()
 		return next_exp
