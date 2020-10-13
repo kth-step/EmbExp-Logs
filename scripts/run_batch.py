@@ -14,7 +14,7 @@ import exp_finder
 # parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("-ec", "--exp_class", help="class of experiment: arm8/exps2/exp_cache_multiw, takes from stdin if this is not provided")
-parser.add_argument("-br", "--branchname", help="branch of ProgPlatform, default is master", choices=['scamv', 'scamv-rpi4'])
+parser.add_argument("-br", "--branchname", help="branch of ProgPlatform, default is master", choices=['scamv', 'scamv-rpi4', 'scamv_rpi3'])
 parser.add_argument("-bt", "--board_type", help="broad_type", choices=['rpi3', 'rpi4'])
 
 parser.add_argument("-am", "--auto_mode", help="automatic mode: all, fix (default). run for all present experiments or just fix the unfinished ones that run with the current master branch of ProgPlatform (no result file)")
@@ -54,7 +54,8 @@ if not do_auto:
 else:
 	assert board_type == "rpi3" or board_type == "rpi4"
 
-	branchname = progplatform.get_default_branch()
+	if branchname == None:
+		branchname = progplatform.get_default_branch()
 	progplat_hash = progplat.get_branch_commit_hash(branchname)
 
 	if auto_mode == "fix":
