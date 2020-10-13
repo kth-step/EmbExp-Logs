@@ -13,11 +13,11 @@ import exp_runner
 
 # parse arguments
 parser = argparse.ArgumentParser()
+parser.add_argument("board_type",            help="platfrom to execute experiments: rpi3 or rpi4", choices=['rpi3', 'rpi4'])
+parser.add_argument("branchname",            help="platfrom to execute experiments: rpi3 or rpi4", choices=['scamv', 'scamv-rpi4', 'scamv_rpi3'])
 parser.add_argument("exp_id",                help="id of experiment: arm8/exps2/exp_cache_multiw/{EXPERIMENT_HASH}")
 parser.add_argument("input_index",           help="input index to choose from exp_id", type=int,   choices=range(1, 3))
 parser.add_argument("exp_new_name",          help="id of experiment: arm8/exps2/exp_cache_multiw/{EXPERIMENT_HASH}")
-
-parser.add_argument("--board_type",            help="platfrom to execute experiments: rpi3 or rpi4", choices=['rpi3', 'rpi4'])
 
 parser.add_argument("-exec", "--execute",    help="run the experiment afterwards", action="store_true")
 parser.add_argument("-ra", "--remove_after", help="remove experiment afterwards",  action="store_true")
@@ -30,7 +30,8 @@ if args.verbose:
 else:
 	logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
-board_type  = args.board_type
+board  = args.board_type
+branch = args.branchname
 exp_id = args.exp_id
 exp    = experiment.Experiment(exp_id)
 input_index  = args.input_index
@@ -52,8 +53,7 @@ with open(exp.get_path("code.hash", True), "rb") as f:
 	files.append(("code.hash", f.read()))
 with open(exp.get_path(f"input{input_index}.json", True), "rb") as f:
 	files.append(("input1.json", f.read()))
-
-# TODO: remove this hack everywhere to have a new json file for this extra input information
+	
 # reading the input for mistraining the branch predictor
 input_index_dual = (input_index % 2) + 1
 with open(exp.get_path(f"train.json", True), "rb") as f:
@@ -66,7 +66,7 @@ if not remove_after:
 
 if execute:
 	try:
-		exp_runner.run_experiment(exp_new_id, board_type=board_type, printeval=True, write_results=False)
+		exp_runner.run_experiment(exp_new_id, board_type=board, branchname=branch, printeval=True, write_results=False)
 	finally:
 		if remove_after:
 			exp_new_path = os.path.abspath(exp_new.get_path("."))
