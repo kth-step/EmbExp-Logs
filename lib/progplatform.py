@@ -25,7 +25,7 @@ def get_embexp_ProgPlatform(embexp_arg):
 	return ProgPlatform(progplat_path)
 
 def get_default_branch():
-	return "scamv-rpi4"
+	return "scamv_rpi3"
 
 class ProgPlatform:
 	def __init__(self, progplat_path):
