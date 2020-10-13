@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -199,3 +199,5 @@ if args.print_others:
 		print(exp_id)
 	print()
 	print()
+
+

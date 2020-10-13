@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -14,7 +14,7 @@ import exp_runner
 # parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("board_type",            help="platfrom to execute experiments: rpi3 or rpi4", choices=['rpi3', 'rpi4'])
-parser.add_argument("branchname",            help="platfrom to execute experiments: rpi3 or rpi4", choices=['scamv', 'scamv-rpi4'])
+parser.add_argument("branchname",            help="platfrom to execute experiments: rpi3 or rpi4", choices=['scamv', 'scamv-rpi4', 'scamv_rpi3'])
 parser.add_argument("exp_id",                help="id of experiment: arm8/exps2/exp_cache_multiw/{EXPERIMENT_HASH}")
 parser.add_argument("input_index",           help="input index to choose from exp_id", type=int,   choices=range(1, 3))
 parser.add_argument("exp_new_name",          help="id of experiment: arm8/exps2/exp_cache_multiw/{EXPERIMENT_HASH}")

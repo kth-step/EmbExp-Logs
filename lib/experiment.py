@@ -4,6 +4,7 @@ import os
 import json
 import re
 import shutil
+import os.path
 
 
 from helpers import *
@@ -14,13 +15,11 @@ def get_run_dir(run_id):
 	return f"run.{run_id}"
 
 class Experiment(object):
-	tries = 0
-
 	def __init__(self, exp_id):
 		assert len(exp_id.split('/')) == 4
 		self.exp_id = exp_id
 		self.exp_path = get_logs_path(exp_id)
-		assert os.path.isdir(self.exp_path)
+		#assert os.path.isdir(self.exp_path)
 
 	def create(exp_id, files):
 		exp_path = get_logs_path(exp_id)
@@ -115,7 +114,18 @@ class Experiment(object):
 		if not os.path.isfile(self.get_prog_path("code.asm")):
 			return False
 		return True
+		
+	def get_tries_file(self, filename):
+		if os.path.isfile(os.path.join(self.exp_path, filename)):
+			with open(self.get_path(filename, True), "r") as f:
+				return int(json.load(f))
+		else:
+			return 0
 
+	def set_tries_file(self, filename, val):
+		with open(os.path.join(self.exp_path, filename), "w+") as f:
+			f.write(str(val))
+			
 	def is_incomplete_experiment(self, run_id):
 		is_complete = True
 		# TODO: these filenames are specific to a certain type of experiment
@@ -127,13 +137,13 @@ class Experiment(object):
 			run_id      = self.get_run_ids()[0]
 			run_res_dir = self.get_path(f"{get_run_dir(run_id)}")
 			content     = self.get_result_file(f"{get_run_dir(run_id)}/result.json")
-			if (bool(exception.search(str(content)))):
-				Experiment.tries += 1
+			if (bool(exception.search(str(content))) and (self.get_tries_file('tries.json') < 3)):
+				self.set_tries_file('tries.json',  self.get_tries_file('tries.json') + 1)
 				try:
 					shutil.rmtree(run_res_dir)
 				except OSError as e:
 					print("Error: %s : %s" % (run_res_dir, e.strerror))
-			is_complete = is_complete and (not (bool(exception.search(str(content))) and (Experiment.tries < 3))) 	
+				is_complete = is_complete and (not (bool(exception.search(str(content))) and (self.get_tries_file('tries.json') < 3))) 	
 		
 		return not is_complete
 
