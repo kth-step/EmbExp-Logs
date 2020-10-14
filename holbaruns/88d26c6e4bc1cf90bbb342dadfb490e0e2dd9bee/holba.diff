@@ -1,0 +1,12 @@
+diff --git a/src/tools/scamv/examples/analyzeprogs.sml b/src/tools/scamv/examples/analyzeprogs.sml
+index 44dd25e..92a202a 100644
+--- a/src/tools/scamv/examples/analyzeprogs.sml
++++ b/src/tools/scamv/examples/analyzeprogs.sml
+@@ -1,6 +1,6 @@
+ 
+ (* branch: tacas_29_09_01_cache_addr_pc *)
+-val listname = "test123";
++val listname = "tacas_cache_addr_pc_p2_0";
+ 
+ (*
+ =================================== general stuff starts here ====================================
