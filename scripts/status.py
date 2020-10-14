@@ -17,6 +17,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--arch_id",       help="architecture id, default: arm8")
 parser.add_argument("-ri", "--run_id", help="id of run made up of ProgPlatform commit hash and board type, for example: 13700076ab79095f15468f0c489fa587ac225626.rpi3")
 
+parser.add_argument("-l", "--listfile", help="list file to use as set of experiments")
+
 parser.add_argument("-pp", "--print_progs",           help="print the list of programs", action="store_true")
 
 parser.add_argument("-pe", "--print_examples",        help="print the list of validation examples", action="store_true")
@@ -48,6 +50,18 @@ if run_id == None:
 
 print(f"run_id = {run_id}")
 print()
+
+listfile = args.listfile
+exp_set = None
+if listfile != None:
+	exp_set = set()
+
+	with open(listfile, 'r') as f:
+		lines = f.readlines()
+	for line in lines:
+		if line.startswith("#") or line.strip() == "":
+			continue
+		exp_set.add(line.strip())
 
 # all of this should be moved to library file experiment or experiments or similar
 def collect_structure(startpath):
@@ -93,7 +107,9 @@ for et in expts:
 	et2s = structure_dirs(arch_structure[et])
 	for et2 in et2s:
 		for ei in structure_dirs(arch_structure[et][et2]):
-			exps.append(f"{arch_id}/{et}/{et2}/{ei}")
+			exp_id = f"{arch_id}/{et}/{et2}/{ei}"
+			if (exp_set == None) or (exp_id in exp_set):
+				exps.append(exp_id)
 
 # filter out the valid experiments
 exps = map(lambda x: experiment.Experiment(x), exps)
