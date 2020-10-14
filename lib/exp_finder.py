@@ -6,6 +6,16 @@ import time
 import experiment
 from helpers import *
 
+
+class ExpsIterList:
+	def __init__(self, listval):
+		self.listval = listval
+		self._exp_size = len(listval)
+		self.iteration = 0
+
+	def __iter__(self):
+		return self.listval.__iter__()
+
 def get_exps_from_stdin():
 	exp_list = []
 	for line in sys.stdin:
@@ -18,7 +28,7 @@ def get_exps_from_stdin():
 		if not exp.is_valid_experiment():
 			raise Exception(f"not a valid experiment: {exp_id}")
 
-	return exp_list
+	return ExpsIterList(exp_list)
 
 def get_exps(exp_class, auto_mode = None, progplat_hash = None, board_type = None, exp_prefix = None, checkallvalid = False):
 
