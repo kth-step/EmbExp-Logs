@@ -182,6 +182,15 @@ def gen_readable(regmap):
 	s = ""
 	for reg in regmap.keys():
 		val = regmap[reg]
+		if isinstance(val,dict):
+			print("MEM = {")
+			for addr_s in val:
+				v = val[addr_s].to_bytes(1, byteorder='big').hex()
+				a = int(addr_s).to_bytes(8, byteorder='big').hex()
+				print(f"\t0x{a} => 0x{v}")
+			print("}")
+			continue
+
 		assert val < 2**64
 		assert val >= 0
 		val_str = "0x" + val.to_bytes(8, byteorder='big').hex()
