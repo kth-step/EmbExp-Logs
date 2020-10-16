@@ -103,6 +103,9 @@ def gen_input_code_mem(memmap, regs, asm):
 		asm += f"\tstrb {regs[0]}, [{regs[1]}, {str(itm[1])}]\n"
 	return asm
 	
+def uncacheable(cacheable_addr):
+    return cacheable_addr - 0x40000000
+
 def mem_parse(memmap):
 	flatten  = lambda l: [item for sublist in l for item in sublist]
 	def partition(addresses, patterns):
@@ -117,7 +120,7 @@ def mem_parse(memmap):
 	# (address, offset, value)
 	address_and_offset_value = list(map(lambda x :
                                        (list(map (lambda y :
-                                            (y & adr_mask, y & off_mask, memmap[y]), x))),
+                                            (uncacheable(y & adr_mask), y & off_mask, memmap[y]), x))),
                                        partitioned_based_on_pattern))
 	return (flatten (address_and_offset_value))
 	
