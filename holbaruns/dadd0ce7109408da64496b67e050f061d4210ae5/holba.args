@@ -1,0 +1,1 @@
+driver-test --max_iter 3 --prog_size 6 --max_tests 6 --generator qc --generator_param spectre --obs_model cache_speculation --hw_obs_model hw_cache_tag_index

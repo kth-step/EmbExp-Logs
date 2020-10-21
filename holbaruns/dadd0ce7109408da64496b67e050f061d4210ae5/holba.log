@@ -1,0 +1,14 @@
+Starting log for: dadd0ce7109408da64496b67e050f061d4210ae5
+Scam-V set to the following test params:
+Program generator    : qc
+Prog gen params      : SOME "spectre"
+Observation model    : cache_speculation
+Refined observation model: NONE
+Projection model: 1
+HW observation model : cache_multiw
+Enumerate            : false
+
+
+
+======================================
+Experiment generation duration: 133.721s
