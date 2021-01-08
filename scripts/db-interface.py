@@ -17,6 +17,8 @@ parser = argparse.ArgumentParser(description='Database interface with operation 
 
 parser.add_argument("operation",       help="operation to execute on database", choices=["backup", "importdb", "create", "append", "query"])
 
+parser.add_argument("-i", "--input", help="take input as command line argument instead of stdin")
+
 parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
 
 args = parser.parse_args()
@@ -28,15 +30,20 @@ else:
 	logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
 operation = args.operation
+input_data = args.input
 
 # change to script's repository root directory
 os.chdir(os.path.join(os.path.dirname(__file__), ".."))
 
 # parse operation arguments from stdin
 logging.info(f"parsing json arguments.")
-json_arguments = json.load(sys.stdin)
+if input_data != None:
+	json_arguments = json.loads(input_data)
+else:
+	logging.info(f"from stdin...")
+	json_arguments = json.load(sys.stdin)
 
-# check if database already exists, if not create tables and version information
+# check if database already exists, if not create tables and version information from schema.sql
 data_dir = "data"
 backup_dir = os.path.join(data_dir, "backups")
 database_file = os.path.join(data_dir, "logs.db")
@@ -50,11 +57,16 @@ con = sl.connect(database_file)
 if not database_exists:
 	logging.info(f"no database. creating tables and version information")
 	# create tables and finally version information
-	pass
+	with open("lib/schema.sql", "r") as f:
+		with con:
+			con.executescript(f.read())
 else:
 	logging.info(f"found database. checking version information")
 	# check version information to ensure tables are as expected
-	pass
+	cur = con.execute(f"SELECT * FROM db_meta WHERE id = 0")
+	versionrow = list(cur)
+	assert(len(versionrow) == 1)
+	assert(versionrow[0] == (0, None, "version", "1")) # assert that db version is correct
 
 # define executions for each operation type
 """ op:backup """
