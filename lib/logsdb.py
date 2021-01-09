@@ -8,7 +8,7 @@ import collections
 
 TableRecord_holba_runs = (
   collections.namedtuple("TableRecord_holba_runs",
-  ["id", "time"]))
+  ["id", "time", "exp_progs_lists_id", "exp_exps_lists_id"]))
 TableRecord_holba_runs_meta = (
   collections.namedtuple("TableRecord_holba_runs_meta",
   ["holba_runs_id", "kind", "name", "value"]))
@@ -29,14 +29,14 @@ TableRecord_exp_exps_meta = (
 
 TableRecord_exp_progs_lists = (
   collections.namedtuple("TableRecord_exp_progs_lists",
-  ["id", "name"]))
+  ["id", "name", "description"]))
 TableRecord_exp_progs_lists_entries = (
   collections.namedtuple("TableRecord_exp_progs_lists_entries",
   ["exp_progs_lists_id", "exp_progs_id"]))
 
 TableRecord_exp_exps_lists = (
   collections.namedtuple("TableRecord_exp_exps_lists",
-  ["id", "name"]))
+  ["id", "name", "description"]))
 TableRecord_exp_exps_lists_entries = (
   collections.namedtuple("TableRecord_exp_exps_lists_entries",
   ["exp_exps_lists_id", "exp_exps_id"]))
@@ -70,13 +70,18 @@ TableRecord_by_table = {
     TableRecord_db_meta
   }
 
+def row_factory_simple(mfun):
+	return (lambda _,b: mfun(b))
+
+# TODO: change this to identify this table type by fields (if "id" is a field)
 _tables_simple = ["holba_runs", "exp_progs", "exp_exps", "exp_progs_lists", "exp_exps_lists", "db_meta"]
 _tables_meta   = ["holba_runs_meta", "exp_progs_meta", "exp_exps_meta", "exp_progs_lists_entries", "exp_exps_lists_entries"]
 _tables_all    = _tables_simple + _tables_meta
 assert(set(_tables_all) == set(TableRecord_by_table.keys()))
 
-def row_factory_simple(mfun):
-	return (lambda _,b: mfun(b))
+# TODO: represent graph of table links
+
+# TODO: generally, add some simple test infrastructure
 
 class LogsDB:
 	def __init__(self):
@@ -237,6 +242,16 @@ class LogsDB:
 				return list(cur.fetchall())
 		except:
 			raise Exception("matching failed")
+
+		# TODO: generalize ("NOT",=, LIKE, IN) https://www.w3schools.com/sql/sql_where.asp
+
+	def get_tablerecord_join_matches(self, datas):
+		# fixed to inner join for now, probably don't need more
+		# TODO: more advanced queries - combinations on related tables:
+		#          - inner joins given as list where first one is the queried type, all are match queries
+		# TODO: add countonly option
+		# TODO: add "order by" option for data columns
+		pass
 
 	def to_string(self, with_entries = False):
 		res = []

@@ -10,7 +10,13 @@ BEGIN TRANSACTION;
 CREATE TABLE holba_runs (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   time TEXT NOT NULL,
-  CONSTRAINT UC_holba_runs UNIQUE (time)
+  exp_progs_lists_id INTEGER,
+  exp_exps_lists_id INTEGER,
+  CONSTRAINT UC_holba_runs UNIQUE (time),
+  CONSTRAINT FK_exp_progs_lists FOREIGN KEY (exp_progs_lists_id) REFERENCES exp_progs_lists(id),
+  CONSTRAINT FK_exp_exps_lists  FOREIGN KEY (exp_exps_lists_id)  REFERENCES exp_exps_lists(id),
+  CONSTRAINT UC_exp_progs_lists UNIQUE (exp_progs_lists_id),
+  CONSTRAINT UC_exp_exps_lists  UNIQUE (exp_exps_lists_id)
 );
 -- metadata for holba runs
 CREATE TABLE holba_runs_meta (
@@ -63,6 +69,7 @@ CREATE TABLE exp_exps_meta (
 CREATE TABLE exp_progs_lists (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
+  description TEXT,
   CONSTRAINT UC_exp_progs_lists UNIQUE (name)
 );
 -- link between program lists and their programs
@@ -79,6 +86,7 @@ CREATE TABLE exp_progs_lists_entries (
 CREATE TABLE exp_exps_lists (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
+  description TEXT,
   CONSTRAINT UC_exp_exps_lists UNIQUE (name)
 );
 -- link between experiment lists and their experiments
