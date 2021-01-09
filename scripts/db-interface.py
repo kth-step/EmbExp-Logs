@@ -79,16 +79,20 @@ def op_query(db, json_args):
 """ op:test """
 def op_test(db, json_args):
 	# general tests
-	print(logsdb.get_empty_TableRecord("db_meta"))
-	print(logsdb.get_empty_TableRecord(logsdb.TableRecord_db_meta))
+	TR_db_meta_empty = logsdb.TableRecord_db_meta._make([None]*4)
+	assert(TR_db_meta_empty == logsdb.get_empty_TableRecord(logsdb.TableRecord_db_meta))
+	assert(TR_db_meta_empty == logsdb.get_empty_TableRecord("db_meta"))
 
 	# make sure that the database is cleared
-	for t in logsdb.tables_all:
-		n = db.get_tablerecord_matches(logsdb.get_empty_TableRecord(t), True)
-		if t == "db_meta":
-			assert(n == 1)
-		else:
-			assert(n == 0)
+	try:
+		for t in logsdb.tables_all:
+			n = db.get_tablerecord_matches(logsdb.get_empty_TableRecord(t), True)
+			if t == "db_meta":
+				assert(n == 1)
+			else:
+				assert(n == 0)
+	except:
+		raise Exception("database must be cleared before testing")
 
 	# add a bit of metadata
 	_db_meta = db.get_tablerecord_matches(logsdb.get_empty_TableRecord("db_meta"))
