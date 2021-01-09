@@ -5,6 +5,28 @@ import os
 import logging
 import datetime
 import collections
+from enum import Enum
+
+# TODO: generalize matching query with indexed query expressions ("AND", "OR", "NOT") (=, LIKE, IN): https://www.w3schools.com/sql/sql_where.asp
+class Query_Binop_op(Enum):
+	EQ   = "="
+	LIKE = "LIKE"
+	IN   = "IN"
+	AND  = "AND"
+	OR   = "OR"
+	NOT  = "NOT"
+
+Query_Binop = (
+  collections.namedtuple("Query_Binop",
+  ["op", "arg1", "arg2"]))
+
+Query_Const = (
+  collections.namedtuple("Query_Const",
+  ["value"]))
+
+Query_Ref = (
+  collections.namedtuple("Query_Const",
+  ["index", "field"]))
 
 TableRecord_holba_runs = (
   collections.namedtuple("TableRecord_holba_runs",
@@ -212,6 +234,9 @@ class LogsDB:
 		except:
 			raise Exception("insertion failed")
 
+	# TODO: implement appending of metadata for metadata tables (tablename ends with meta, all except "value" must match to find it, kind must be different than none, if entry doesn't exist yet, we fail)
+	# def append_tablerecord_meta(self, data):
+
 	def get_tablerecord_matches(self, data, countonly = False):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
 		fields = list(filter(lambda n: getattr(data, n) != None, data._fields))
@@ -244,13 +269,12 @@ class LogsDB:
 		except:
 			raise Exception("retrieval failed")
 
-		# TODO: generalize ("NOT",=, LIKE, IN) https://www.w3schools.com/sql/sql_where.asp
 
-	def get_tablerecord_join_matches(self, datas, countonly = False):
+	def get_tablerecords(self, datas, countonly = False):
 		# fixed to inner join for now, probably don't need more
 		# TODO: more advanced queries - combinations on related tables:
-		#          - inner joins given as list where first one is the queried type, all are match queries
-		# TODO: add "order by" option for data columns
+		#          - inner joins given as list where first one is the queried type, all together are used for the query
+		# TODO: add "order by" option for data columns, use list of Query_Ref
 		pass
 
 	def to_string(self, with_entries = False):

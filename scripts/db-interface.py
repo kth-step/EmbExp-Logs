@@ -103,6 +103,9 @@ def op_test(db, json_args):
 	#print(_db_meta)
 	#print(_db_meta_1)
 	assert(_db_meta == _db_meta_1)
+	# check countonly option
+	assert(len(db.get_tablerecord_matches(logsdb.get_empty_TableRecord("db_meta")))
+		== db.get_tablerecord_matches(logsdb.get_empty_TableRecord("db_meta"), True))
 	# try to break uniqueness constraint
 	try_fin = False
 	try:
