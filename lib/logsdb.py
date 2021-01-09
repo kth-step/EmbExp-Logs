@@ -70,18 +70,17 @@ TableRecord_by_table = {
     TableRecord_db_meta
   }
 
+tables_all    = TableRecord_by_table.keys()
+
 def row_factory_simple(mfun):
 	return (lambda _,b: mfun(b))
 
-# TODO: change this to identify this table type by fields (if "id" is a field)
-_tables_simple = ["holba_runs", "exp_progs", "exp_exps", "exp_progs_lists", "exp_exps_lists", "db_meta"]
-_tables_meta   = ["holba_runs_meta", "exp_progs_meta", "exp_exps_meta", "exp_progs_lists_entries", "exp_exps_lists_entries"]
-_tables_all    = _tables_simple + _tables_meta
-assert(set(_tables_all) == set(TableRecord_by_table.keys()))
+def get_empty_TableRecord(t):
+	if type(t) == str:
+		t = TableRecord_by_table[t]
+	return t._make([None] * len(t._fields))
 
 # TODO: represent graph of table links
-
-# TODO: generally, add some simple test infrastructure
 
 class LogsDB:
 	def __init__(self):
@@ -184,16 +183,12 @@ class LogsDB:
 	def add_tablerecord(self, data):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
 
-		fields = None
-		if   table in _tables_simple:
+		fields = list(data._fields)
+		# tables with a generic id field need special treatment
+		if "id" in fields:
 			if data.id != None:
 				raise Exception(f"the id cannot be forced on entries for table '{table}', must be None here")
-			fields = list(data._fields)
 			fields.remove("id")
-		elif table in _tables_meta:
-			fields = list(data._fields)
-		else:
-			assert(False)
 
 		sql_fields_str = f"({', '.join(fields)})"
 		sql_values_str = f"({', '.join(['?'] * len(fields))})"
@@ -217,7 +212,7 @@ class LogsDB:
 		except:
 			raise Exception("insertion failed")
 
-	def get_tablerecord_matches(self, data):
+	def get_tablerecord_matches(self, data, countonly = False):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
 		fields = list(filter(lambda n: getattr(data, n) != None, data._fields))
 
@@ -238,18 +233,23 @@ class LogsDB:
 					cur.execute(sql_str)
 				else:
 					cur.execute(sql_str, sql_values)
-				cur.row_factory = row_factory_simple(data_type._make)
-				return list(cur.fetchall())
+				if countonly:
+					n = 0
+					for _ in cur:
+						n += 1
+					return n
+				else:
+					cur.row_factory = row_factory_simple(data_type._make)
+					return list(cur.fetchall())
 		except:
-			raise Exception("matching failed")
+			raise Exception("retrieval failed")
 
 		# TODO: generalize ("NOT",=, LIKE, IN) https://www.w3schools.com/sql/sql_where.asp
 
-	def get_tablerecord_join_matches(self, datas):
+	def get_tablerecord_join_matches(self, datas, countonly = False):
 		# fixed to inner join for now, probably don't need more
 		# TODO: more advanced queries - combinations on related tables:
 		#          - inner joins given as list where first one is the queried type, all are match queries
-		# TODO: add countonly option
 		# TODO: add "order by" option for data columns
 		pass
 
