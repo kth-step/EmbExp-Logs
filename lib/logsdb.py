@@ -102,7 +102,31 @@ def get_empty_TableRecord(t):
 		t = TableRecord_by_table[t]
 	return t._make([None] * len(t._fields))
 
-# TODO: represent graph of table links
+# represent table links
+TableLinks = {
+  ("holba_runs"             , "exp_progs_lists"): ("exp_progs_lists_id", "id"),
+  ("holba_runs"             , "exp_exps_lists"):  ("exp_exps_lists_id" , "id"),
+  ("holba_runs"             , "holba_runs_meta"): ("id"                , "holba_runs_id"),
+
+  ("exp_progs_lists_entries", "exp_progs_lists"): ("exp_progs_lists_id", "id"),
+  ("exp_progs_lists_entries", "exp_progs"):       ("exp_progs_id"      , "id"),
+  ("exp_progs"              , "exp_progs_meta"):  ("id"                , "exp_progs_id"),
+
+  ("exp_exps_lists_entries" , "exp_exps_lists"):  ("exp_exps_lists_id" , "id"),
+  ("exp_exps_lists_entries" , "exp_exps"):        ("exp_exps_id"       , "id"),
+  ("exp_exps"               , "exp_exps_meta"):   ("id"                , "exp_exps_id"),
+  ("exp_exps"               , "exp_progs"):       ("exp_progs_id"      , "id")
+}
+
+def get_TableLink(a,b):
+	try:
+		return TableLinks[(a,b)]
+	except KeyError:
+		try:
+			(f2,f1) = TableLinks[(b,a)]
+			return (f1,f2)
+		except KeyError:
+			raise Exception(f"there is no link between '{a}' and '{b}'")
 
 class LogsDB:
 	def __init__(self):
@@ -237,7 +261,7 @@ class LogsDB:
 	# TODO: implement appending of metadata for metadata tables (tablename ends with meta, all except "value" must match to find it, kind must be different than none, if entry doesn't exist yet, we fail)
 	# def append_tablerecord_meta(self, data):
 
-	def get_tablerecord_matches(self, data, countonly = False):
+	def get_tablerecord_matches(self, data, count_only = False):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
 		fields = list(filter(lambda n: getattr(data, n) != None, data._fields))
 
@@ -258,7 +282,7 @@ class LogsDB:
 					cur.execute(sql_str)
 				else:
 					cur.execute(sql_str, sql_values)
-				if countonly:
+				if count_only:
 					n = 0
 					for _ in cur:
 						n += 1
@@ -269,12 +293,39 @@ class LogsDB:
 		except:
 			raise Exception("retrieval failed")
 
-
-	def get_tablerecords(self, datas, countonly = False):
-		# fixed to inner join for now, probably don't need more
-		# TODO: more advanced queries - combinations on related tables:
+	def get_tablerecords(self, table, joins, query_exp, order_by = [], count_only = False):
+		# more advanced queries - combinations on related tables:
 		#          - inner joins given as list where first one is the queried type, all together are used for the query
+		# fixed to inner join for now, probably don't need more at first
+
+		# TODO: implement the following steps :)
+		# check that tables and tables in joins are allowed
+		# build map index to generated tablename
+		# build row construction with inner joins
+		get_TableLink(a,b)
+		# A: translate query_exp to sql condition string
+		# build order_by list
+		# A: generate query
+		"""
+		SELECT DISTINCT _t_t0.*
+		FROM (
+		  {} AS _t_t0
+		  INNER JOIN {} AS _t_t1 ON _t_t0.id = _t_t1.remote_id
+		)
+		WHERE (
+		)
+		ORDER BY _t_t0.id ASC, _t_t1.id DESC
+		"""
+		# add count_only quirk
+		"SELECT COUNT(DISTINCT _t_t0.*) FROM"
+		"SELECT COUNT(*) FROM (SELECT ...)"
+
+
+		#data_infos = list(map(LogsDB._get_tablerecord_info, datas))
+		#if len(data_infos) != len(set(data_infos)):
+		#	raise Exception("cannot have twice the same type of data here")
 		# TODO: add "order by" option for data columns, use list of Query_Ref
+		# TODO: remove data values, better only take types and encode query completely in query_exp
 		pass
 
 	def to_string(self, with_entries = False):
