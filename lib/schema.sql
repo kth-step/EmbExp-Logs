@@ -100,7 +100,7 @@ CREATE TABLE db_meta (
   CONSTRAINT UC_db_meta UNIQUE (kind,name)
 );
 INSERT INTO db_meta (id, kind, name, value)
-VALUES (0, NULL, "version", "1");
+VALUES (0, "logsdb", "version", "1");
 
 COMMIT;
 
