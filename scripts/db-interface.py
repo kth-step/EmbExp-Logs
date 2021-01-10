@@ -8,7 +8,7 @@ import argparse
 import logging
 
 import json
-import logsdb
+import logsdb as ldb
 
 # parse arguments
 parser = argparse.ArgumentParser(description='Database interface with operation as argument and json formatted input and output.',
@@ -79,14 +79,14 @@ def op_query(db, json_args):
 """ op:test """
 def op_test(db, json_args):
 	# general tests
-	TR_db_meta_empty = logsdb.TableRecord_db_meta._make([None]*4)
-	assert(TR_db_meta_empty == logsdb.get_empty_TableRecord(logsdb.TableRecord_db_meta))
-	assert(TR_db_meta_empty == logsdb.get_empty_TableRecord("db_meta"))
+	TR_db_meta_empty = ldb.TableRecord_db_meta._make([None]*4)
+	assert(TR_db_meta_empty == ldb.get_empty_TableRecord(ldb.TableRecord_db_meta))
+	assert(TR_db_meta_empty == ldb.get_empty_TableRecord("db_meta"))
 
 	# make sure that the database is cleared
 	try:
-		for t in logsdb.tables_all:
-			n = db.get_tablerecord_matches(logsdb.get_empty_TableRecord(t), True)
+		for t in ldb.tables_all:
+			n = db.get_tablerecord_matches(ldb.get_empty_TableRecord(t), True)
 			if t == "db_meta":
 				assert(n == 1)
 			else:
@@ -95,21 +95,21 @@ def op_test(db, json_args):
 		raise Exception("database must be cleared before testing")
 
 	# add a bit of metadata
-	_db_meta = db.get_tablerecord_matches(logsdb.get_empty_TableRecord("db_meta"))
-	_db_meta += [db.add_tablerecord(logsdb.TableRecord_db_meta(id=None, kind=None, name='hellO', value='me123'))]
-	_db_meta += [db.add_tablerecord(logsdb.TableRecord_db_meta(id=None, kind=None, name='hellO', value='me123'))]
-	_db_meta += [db.add_tablerecord(logsdb.TableRecord_db_meta(id=None, kind="hello8", name='123', value='me123'))]
-	_db_meta_1 = db.get_tablerecord_matches(logsdb.get_empty_TableRecord("db_meta"))
+	_db_meta = db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta"))
+	_db_meta += [db.add_tablerecord(ldb.TableRecord_db_meta(id=None, kind=None, name='hellO', value='me123'))]
+	_db_meta += [db.add_tablerecord(ldb.TableRecord_db_meta(id=None, kind=None, name='hellO', value='me123'))]
+	_db_meta += [db.add_tablerecord(ldb.TableRecord_db_meta(id=None, kind="hello8", name='123', value='me123'))]
+	_db_meta_1 = db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta"))
 	#print(_db_meta)
 	#print(_db_meta_1)
 	assert(_db_meta == _db_meta_1)
 	# check countonly option
-	assert(len(db.get_tablerecord_matches(logsdb.get_empty_TableRecord("db_meta")))
-		== db.get_tablerecord_matches(logsdb.get_empty_TableRecord("db_meta"), True))
+	assert(len(db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta")))
+		== db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta"), True))
 	# try to break uniqueness constraint
 	try_fin = False
 	try:
-		db.add_tablerecord(logsdb.TableRecord_db_meta(id=None, kind="hello8", name='123', value='111'))
+		db.add_tablerecord(ldb.TableRecord_db_meta(id=None, kind="hello8", name='123', value='111'))
 		try_fin = True
 	except:
 		pass
@@ -117,9 +117,9 @@ def op_test(db, json_args):
 
 	# add two holbaruns
 	def create_holbarun(i):
-		progs_list = db.add_tablerecord(logsdb.get_empty_TableRecord("exp_progs_lists")._replace(name = f"holbarun_{i}"))
-		exps_list  = db.add_tablerecord(logsdb.get_empty_TableRecord("exp_exps_lists")._replace(name =  f"holbarun_{i}"))
-		holbarun   = db.add_tablerecord(logsdb.TableRecord_holba_runs(
+		progs_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs_lists")._replace(name = f"holbarun_{i}"))
+		exps_list  = db.add_tablerecord(ldb.get_empty_TableRecord("exp_exps_lists")._replace(name =  f"holbarun_{i}"))
+		holbarun   = db.add_tablerecord(ldb.TableRecord_holba_runs(
 			id=None,
 			time=f"time {i}",
 			exp_progs_lists_id = progs_list.id,
@@ -130,7 +130,7 @@ def op_test(db, json_args):
 	# try to break foreign key constraint
 	try_fin = False
 	try:
-		db.add_tablerecord(logsdb.TableRecord_holba_runs(
+		db.add_tablerecord(ldb.TableRecord_holba_runs(
 			id=None,
 			time="some new string",
 			exp_progs_lists_id = holbarun_1.exp_progs_lists_id+10000,
@@ -142,8 +142,8 @@ def op_test(db, json_args):
 
 	# add two progs for each run
 	def add_prog(i, holbarun):
-		prog = db.add_tablerecord(logsdb.get_empty_TableRecord("exp_progs")._replace(code = f"crazy code {i}"))
-		db.add_tablerecord(logsdb.TableRecord_exp_progs_lists_entries(exp_progs_lists_id=holbarun.exp_progs_lists_id, exp_progs_id=prog.id))
+		prog = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs")._replace(code = f"crazy code {i}"))
+		db.add_tablerecord(ldb.TableRecord_exp_progs_lists_entries(exp_progs_lists_id=holbarun.exp_progs_lists_id, exp_progs_id=prog.id))
 		return prog
 
 	prog_11 = add_prog(11, holbarun_1)
@@ -151,11 +151,11 @@ def op_test(db, json_args):
 	prog_21 = add_prog(21, holbarun_2)
 	prog_22 = add_prog(22, holbarun_2)
 	# add one program in the list of the other run, this should work
-	db.add_tablerecord(logsdb.TableRecord_exp_progs_lists_entries(exp_progs_lists_id=holbarun_1.exp_progs_lists_id, exp_progs_id=prog_22.id))
+	db.add_tablerecord(ldb.TableRecord_exp_progs_lists_entries(exp_progs_lists_id=holbarun_1.exp_progs_lists_id, exp_progs_id=prog_22.id))
 
 	# add a few experiments, two per program
 	def add_exp(i, prog, holbarun):
-		exp = db.add_tablerecord(logsdb.TableRecord_exp_exps(id=None, exp_progs_id=prog.id, input_data=f"crazy inputs {i}"))
+		exp = db.add_tablerecord(ldb.TableRecord_exp_exps(id=None, exp_progs_id=prog.id, input_data=f"crazy inputs {i}"))
 		return exp
 
 	exp_111 = add_exp(111, prog_11, holbarun_1)
@@ -171,26 +171,57 @@ def op_test(db, json_args):
 	print("=" * 40)
 	print(db.to_string(True))
 
-	exp1        = logsdb.Query_Binop(op=logsdb.Query_Binop_op.LIKE, arg1=logsdb.Query_Ref(index=0, field="code"), arg2=logsdb.Query_Const(value="crazy%"))
-	res1        = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = False)
-	res1_cnt    = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = True)
-	res1_expect = [prog_22, prog_21, prog_12, prog_11]
+	exp1         = ldb.QE_Bin(op=ldb.QE_Bop.LIKE, arg1=ldb.QE_Ref(index=0, field="code"), arg2=ldb.QE_Const(value="crazy%"))
+	res1         = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = False)
+	res1_cnt     = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = True, id_only = False)
+	res1_cnt2    = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = True, id_only = True)
+	res1_alt     = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = False, id_only = True)
+	res1_expect  = [prog_22, prog_21, prog_12, prog_11]
+	res1_expect_id = list(map(lambda x: ldb.TableRecord_id_only._make([x.id]), res1_expect))
 	assert(res1 == res1_expect)
 	assert(res1_cnt == len(res1_expect))
+	assert(res1_cnt2 == res1_cnt)
+	assert(res1_alt == res1_expect_id)
 
-	exp2        = logsdb.Query_Binop(op=logsdb.Query_Binop_op.EQ, arg1=logsdb.Query_Ref(index=0, field="code"), arg2=logsdb.Query_Const(value="crazy code 11"))
-	res2        = db.get_tablerecords("exp_progs", [], exp2, order_by = [(0, "id", False)], count_only = False)
-	res2_expect = [prog_11]
+	exp2         = ldb.QE_Bin(op=ldb.QE_Bop.EQ, arg1=ldb.QE_Ref(index=0, field="code"), arg2=ldb.QE_Const(value="crazy code 11"))
+	res2         = db.get_tablerecords("exp_progs", [], exp2, order_by = [(0, "id", False)], count_only = False)
+	res2_expect  = [prog_11]
 	assert(res2 == res2_expect)
 
-	exp3        = logsdb.Query_Binop(op=logsdb.Query_Binop_op.IN, arg1=logsdb.Query_Ref(index=0, field="code"), arg2=logsdb.Query_Const(value=["crazy code 11", "crazy code 21"]))
-	res3        = db.get_tablerecords("exp_progs", [], exp3, order_by = [(0, "id", True), (0, "code", True)], count_only = False)
-	res3_alt    = db.get_tablerecords("exp_progs", [], exp3, order_by = [], count_only = False)
-	res3_expect = [prog_11, prog_21]
+	exp3         = ldb.QE_Bin(op=ldb.QE_Bop.IN, arg1=ldb.QE_Ref(index=0, field="code"), arg2=ldb.QE_Const(value=["crazy code 11", "crazy code 21"]))
+	res3         = db.get_tablerecords("exp_progs", [], exp3, order_by = [(0, "id", True), (0, "code", True)], count_only = False)
+	res3_alt     = db.get_tablerecords("exp_progs", [], exp3, order_by = [], count_only = False)
+	res3_expect  = [prog_11, prog_21]
 	assert(res3 == res3_expect)
 	assert(res3_alt == res3_expect)
 
-	# TODO: add tests for interesting joins and queries with AND, OR and NOT
+	# add tests for interesting joins and queries with AND, OR and NOT
+	exp10        = ldb.QE_Bin(op=ldb.QE_Bop.EQ, arg1=ldb.QE_Ref(index=2, field="name"), arg2=ldb.QE_Const(value="holbarun_1"))
+	res10        = db.get_tablerecords("exp_progs", [("exp_progs_lists_entries", 0), ("exp_progs_lists", 1)], exp10)
+	res10_expect = [prog_11, prog_12, prog_22]
+	assert(res10 == res10_expect)
+
+	exp11        = ldb.QE_Bin(op=ldb.QE_Bop.EQ, arg1=ldb.QE_Ref(index=2, field="name"), arg2=ldb.QE_Const(value="holbarun_2"))
+	res11        = db.get_tablerecords("exp_progs", [("exp_progs_lists_entries", 0), ("exp_progs_lists", 1)], exp11)
+	res11_expect = [prog_21, prog_22]
+	assert(res11 == res11_expect)
+
+	exp12        = ldb.QE_Bin(op=ldb.QE_Bop.OR, arg1=exp10, arg2=exp11)
+	res12        = db.get_tablerecords("exp_progs", [("exp_progs_lists_entries", 0), ("exp_progs_lists", 1)], exp12)
+	res12_expect = [prog_11, prog_12, prog_22, prog_21]
+	assert(res12 == res12_expect)
+
+	exp13        = ldb.QE_Not(arg=exp10)
+	res13        = db.get_tablerecords("exp_progs", [("exp_progs_lists_entries", 0), ("exp_progs_lists", 1)], exp13)
+	res13_expect = res11_expect
+	assert(res13 == res13_expect)
+
+	exp14_p1     = exp10
+	exp14_p2     = ldb.QE_Bin(ldb.QE_Bop.EQ, ldb.QE_Ref(4, "name"), ldb.QE_Const("holbarun_2"))
+	exp14        = ldb.QE_Bin(ldb.QE_Bop.AND, exp14_p1, exp14_p2)
+	res14        = db.get_tablerecords("exp_progs", [("exp_progs_lists_entries", 0), ("exp_progs_lists", 1), ("exp_progs_lists_entries", 0), ("exp_progs_lists", 3)], exp14)
+	res14_expect = [prog_22]
+	assert(res14 == res14_expect)
 
 	return True
 
@@ -207,7 +238,7 @@ logging.info(f"executing operation {operation}")
 opfun = opdict[operation]
 
 # create db access object
-with logsdb.LogsDB() as db:
+with ldb.LogsDB() as db:
 	ret_val = opfun(db, json_arguments)
 	#ret_val = json_arguments
 	#ret_val = {"1": "hello 123", "2": [1,2,3,4], "3": {"hello":123, "hello2":1234}}

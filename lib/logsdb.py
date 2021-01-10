@@ -8,28 +8,27 @@ import collections
 from enum import Enum
 
 # data types for slightly generalized query with indexed query expressions ("NOT") ("AND", "OR") (=, LIKE, IN)
-# TODO: can writing of expressions be simplified a little?
-class Query_Binop_op(Enum):
+class QE_Bop(Enum):
 	EQ   = "="
 	LIKE = "LIKE"
 	IN   = "IN"
 	AND  = "AND"
 	OR   = "OR"
 
-Query_Not = (
-  collections.namedtuple("Query_Not",
+QE_Not = (
+  collections.namedtuple("QE_Not",
   ["arg"]))
 
-Query_Binop = (
-  collections.namedtuple("Query_Binop",
+QE_Bin = (
+  collections.namedtuple("QE_Bin",
   ["op", "arg1", "arg2"]))
 
-Query_Const = (
-  collections.namedtuple("Query_Const",
+QE_Const = (
+  collections.namedtuple("QE_Const",
   ["value"]))
 
-Query_Ref = (
-  collections.namedtuple("Query_Ref",
+QE_Ref = (
+  collections.namedtuple("QE_Ref",
   ["index", "field"]))
 
 # data types for representation of records in tables of database
@@ -71,6 +70,10 @@ TableRecord_exp_exps_lists_entries = (
 TableRecord_db_meta = (
   collections.namedtuple("TableRecord_db_meta",
   ["id", "kind", "name", "value"]))
+
+TableRecord_id_only = (
+  collections.namedtuple("TableRecord_id_only",
+  ["id"]))
 
 TableRecord_by_table = {
   "holba_runs" :
@@ -266,6 +269,7 @@ class LogsDB:
 	# TODO: implement appending of metadata for metadata tables (tablename ends with meta, all except "value" must match to find it, kind must be different than none, if entry doesn't exist yet, we fail)
 	# def append_tablerecord_meta(self, data):
 
+	# for very simple matching queries
 	def get_tablerecord_matches(self, data, count_only = False):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
 		fields = list(filter(lambda n: getattr(data, n) != None, data._fields))
@@ -299,17 +303,17 @@ class LogsDB:
 			raise Exception("retrieval failed")
 
 	def _get_sql_from_exp(ids, tables, exp):
-		if type(exp) is Query_Not:
-			(arg1, vl1) = LogsDB._get_sql_from_exp(ids, tables, exp.arg1)
+		if type(exp) is QE_Not:
+			(arg1, vl1) = LogsDB._get_sql_from_exp(ids, tables, exp.arg)
 			return (f"NOT ({arg1})", vl1)
-		elif type(exp) is Query_Binop:
-			if   exp.op in [Query_Binop_op.AND, Query_Binop_op.OR, Query_Binop_op.EQ, Query_Binop_op.LIKE, Query_Binop_op.IN]:
+		elif type(exp) is QE_Bin:
+			if   exp.op in [QE_Bop.AND, QE_Bop.OR, QE_Bop.EQ, QE_Bop.LIKE, QE_Bop.IN]:
 				(arg1, vl1) = LogsDB._get_sql_from_exp(ids, tables, exp.arg1)
 				(arg2, vl2) = LogsDB._get_sql_from_exp(ids, tables, exp.arg2)
 				return (f"(({arg1}) {exp.op.value} ({arg2}))", vl1+vl2)
 			else:
-				raise Exception(f"unknown binop operator: {exp.op.name}")
-		elif type(exp) is Query_Const:
+				raise Exception(f"unknown binary operator: {exp.op.name}")
+		elif type(exp) is QE_Const:
 			def is_allowed(v):
 				return (v == None) or (type(v) is int) or (type(v) is str) or (type(v) is list)
 			v = exp.value
@@ -320,7 +324,7 @@ class LogsDB:
 			elif not (is_allowed(v)):
 				raise Exception(f"unknown constant type: {v}")
 			return ("?", [v])
-		elif type(exp) is Query_Ref:
+		elif type(exp) is QE_Ref:
 			idx = exp.index
 			field = exp.field
 			table_id = ids[idx]
@@ -331,12 +335,13 @@ class LogsDB:
 		else:
 			raise Exception(f"unknown expression: {exp}")
 
-	def get_tablerecords(self, table, joins, query_exp, order_by = [], count_only = False):
+	# for more complex queries
+	def get_tablerecords(self, table, joins, query_exp, order_by = [], count_only = False, id_only = False):
 		# more advanced queries - combinations on related tables:
 		#          - inner joins given as list where first one is the queried type, all together are used for the query
 		# fixed to inner join for now, probably don't need more at first
 
-		_tables = [table]+list(map(lambda x,_: x, joins))
+		_tables = [table]+list(map(lambda x: x[0], joins))
 		# check that tables and tables in joins are allowed
 		if not all(map(lambda x: x in tables_all, _tables)):
 			raise Exception("not all mentioned tables are known")
@@ -358,10 +363,10 @@ class LogsDB:
 				raise Exception("forward reference not allowed")
 			assert(t == _tables[idx])
 			(f_t, f_r) = get_TableLink(t, _tables[ref_idx])
-			_exp = Query_Binop(op=Query_Binop_op.EQ, arg1=Query_Ref(index=idx, field=f_t), arg2=Query_Ref(index=ref_idx, field=f_r))
+			_exp = QE_Bin(op=QE_Bop.EQ, arg1=QE_Ref(index=idx, field=f_t), arg2=QE_Ref(index=ref_idx, field=f_r))
 			(sql_j_str, sql_j_vl) = LogsDB._get_sql_from_exp(_tables_ids, _tables, _exp)
 			assert(len(sql_j_vl) == 0)
-			sql_from_str += f"  INNER JOIN t AS {_tables_ids[idx]} ON {sql_join_on_str}\n"
+			sql_from_str += f"  INNER JOIN {t} AS {_tables_ids[idx]} ON {sql_j_str}\n"
 		# translate query_exp to sql condition string
 		(sql_w_str, sql_w_vl) = LogsDB._get_sql_from_exp(_tables_ids, _tables, query_exp)
 		# build order_by list
@@ -378,8 +383,13 @@ class LogsDB:
 		if len(order_by_l) > 0:
 			sql_order_by_str = f"ORDER BY {', '.join(order_by_l)}"
 
-		# generate query
-		sql_fields = f"DISTINCT {_tables_ids[0]}.*"
+		# for id_only
+		if not id_only:
+			sql_fields = f"DISTINCT {_tables_ids[0]}.*"
+		else:
+			sql_fields = f"{_tables_ids[0]}.id"
+
+		# generate whole query
 		sql_str  = f"SELECT {sql_fields} FROM (\n"
 		sql_str += sql_from_str
 		sql_str += ")\n"
@@ -391,7 +401,7 @@ class LogsDB:
 		#print(sql_str)
 		#print(sql_w_vl)
 
-		# add count_only
+		# for count_only
 		count_column_id = "_COUNT"
 		if count_only:
 			sql_str = f"SELECT COUNT(*) AS {count_column_id} FROM ({sql_str})"
@@ -405,7 +415,10 @@ class LogsDB:
 				else:
 					cur.execute(sql_str, sql_w_vl)
 				if not count_only:
-					cur.row_factory = row_factory_simple(data_type._make)
+					if not id_only:
+						cur.row_factory = row_factory_simple(data_type._make)
+					else:
+						cur.row_factory = row_factory_simple(TableRecord_id_only._make)
 					return list(cur.fetchall())
 				else:
 					c_l = list(cur.fetchall())
@@ -413,7 +426,6 @@ class LogsDB:
 					return c_l[0][count_column_id]
 		except:
 			raise Exception("retrieval failed")
-		pass
 
 	def to_string(self, with_entries = False):
 		res = []
