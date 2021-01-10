@@ -7,14 +7,18 @@ import datetime
 import collections
 from enum import Enum
 
-# TODO: generalize matching query with indexed query expressions ("AND", "OR", "NOT") (=, LIKE, IN): https://www.w3schools.com/sql/sql_where.asp
+# data types for slightly generalized query with indexed query expressions ("NOT") ("AND", "OR") (=, LIKE, IN)
+# TODO: can writing of expressions be simplified a little?
 class Query_Binop_op(Enum):
 	EQ   = "="
 	LIKE = "LIKE"
 	IN   = "IN"
 	AND  = "AND"
 	OR   = "OR"
-	NOT  = "NOT"
+
+Query_Not = (
+  collections.namedtuple("Query_Not",
+  ["arg"]))
 
 Query_Binop = (
   collections.namedtuple("Query_Binop",
@@ -25,9 +29,10 @@ Query_Const = (
   ["value"]))
 
 Query_Ref = (
-  collections.namedtuple("Query_Const",
+  collections.namedtuple("Query_Ref",
   ["index", "field"]))
 
+# data types for representation of records in tables of database
 TableRecord_holba_runs = (
   collections.namedtuple("TableRecord_holba_runs",
   ["id", "time", "exp_progs_lists_id", "exp_exps_lists_id"]))
@@ -293,39 +298,121 @@ class LogsDB:
 		except:
 			raise Exception("retrieval failed")
 
+	def _get_sql_from_exp(ids, tables, exp):
+		if type(exp) is Query_Not:
+			(arg1, vl1) = LogsDB._get_sql_from_exp(ids, tables, exp.arg1)
+			return (f"NOT ({arg1})", vl1)
+		elif type(exp) is Query_Binop:
+			if   exp.op in [Query_Binop_op.AND, Query_Binop_op.OR, Query_Binop_op.EQ, Query_Binop_op.LIKE, Query_Binop_op.IN]:
+				(arg1, vl1) = LogsDB._get_sql_from_exp(ids, tables, exp.arg1)
+				(arg2, vl2) = LogsDB._get_sql_from_exp(ids, tables, exp.arg2)
+				return (f"(({arg1}) {exp.op.value} ({arg2}))", vl1+vl2)
+			else:
+				raise Exception(f"unknown binop operator: {exp.op.name}")
+		elif type(exp) is Query_Const:
+			def is_allowed(v):
+				return (v == None) or (type(v) is int) or (type(v) is str) or (type(v) is list)
+			v = exp.value
+			if isinstance(v, list):
+				if not(all(map(is_allowed, v))):
+					raise Exception(f"unknown constant type in list: {v}")
+				return (f"{', '.join(['?'] * len(v))}", v) # notice, no parenthesis around because it causes double parenthesis
+			elif not (is_allowed(v)):
+				raise Exception(f"unknown constant type: {v}")
+			return ("?", [v])
+		elif type(exp) is Query_Ref:
+			idx = exp.index
+			field = exp.field
+			table_id = ids[idx]
+			table = tables[idx]
+			if not field in TableRecord_by_table[table]._fields:
+				raise Exception("field '{field}' is not in table '{table}'")
+			return (f"{table_id}.{field}", [])
+		else:
+			raise Exception(f"unknown expression: {exp}")
+
 	def get_tablerecords(self, table, joins, query_exp, order_by = [], count_only = False):
 		# more advanced queries - combinations on related tables:
 		#          - inner joins given as list where first one is the queried type, all together are used for the query
 		# fixed to inner join for now, probably don't need more at first
 
-		# TODO: implement the following steps :)
+		_tables = [table]+list(map(lambda x,_: x, joins))
 		# check that tables and tables in joins are allowed
+		if not all(map(lambda x: x in tables_all, _tables)):
+			raise Exception("not all mentioned tables are known")
+
 		# build map index to generated tablename
-		# build row construction with inner joins
-		get_TableLink(a,b)
-		# A: translate query_exp to sql condition string
+		def get_table_from_idx(idx):
+			assert(idx >= 0)
+			if idx > len(joins):
+				raise Exception("index too high")
+			return f"_tmp_{idx}"
+		_tables_ids = list(map(get_table_from_idx, range(len(_tables))))
+
+		# build from-construction with inner joins
+		idx = 0
+		sql_from_str = f"  {table} AS {_tables_ids[idx]}\n"
+		for (t,ref_idx) in joins:
+			idx += 1
+			if ref_idx >= idx:
+				raise Exception("forward reference not allowed")
+			assert(t == _tables[idx])
+			(f_t, f_r) = get_TableLink(t, _tables[ref_idx])
+			_exp = Query_Binop(op=Query_Binop_op.EQ, arg1=Query_Ref(index=idx, field=f_t), arg2=Query_Ref(index=ref_idx, field=f_r))
+			(sql_j_str, sql_j_vl) = LogsDB._get_sql_from_exp(_tables_ids, _tables, _exp)
+			assert(len(sql_j_vl) == 0)
+			sql_from_str += f"  INNER JOIN t AS {_tables_ids[idx]} ON {sql_join_on_str}\n"
+		# translate query_exp to sql condition string
+		(sql_w_str, sql_w_vl) = LogsDB._get_sql_from_exp(_tables_ids, _tables, query_exp)
 		# build order_by list
-		# A: generate query
-		"""
-		SELECT DISTINCT _t_t0.*
-		FROM (
-		  {} AS _t_t0
-		  INNER JOIN {} AS _t_t1 ON _t_t0.id = _t_t1.remote_id
-		)
-		WHERE (
-		)
-		ORDER BY _t_t0.id ASC, _t_t1.id DESC
-		"""
-		# add count_only quirk
-		"SELECT COUNT(DISTINCT _t_t0.*) FROM"
-		"SELECT COUNT(*) FROM (SELECT ...)"
+		order_by_l = []
+		for (idx,fld,asc) in order_by:
+			if idx >= len(_tables):
+				raise Exception("index out of range")
+			t = _tables[idx]
+			if not fld in TableRecord_by_table[t]._fields:
+				raise Exception("field '{fld}' is not in table '{t}'")
+			asc_str = "ASC" if asc else "DESC"
+			order_by_l.append(f"{_tables_ids[idx]}.{fld} {asc_str}")
+		sql_order_by_str = ""
+		if len(order_by_l) > 0:
+			sql_order_by_str = f"ORDER BY {', '.join(order_by_l)}"
 
+		# generate query
+		sql_fields = f"DISTINCT {_tables_ids[0]}.*"
+		sql_str  = f"SELECT {sql_fields} FROM (\n"
+		sql_str += sql_from_str
+		sql_str += ")\n"
+		sql_str += "WHERE (\n"
+		sql_str += sql_w_str + "\n"
+		sql_str += ")\n"
+		sql_str += sql_order_by_str
+		#print(60 * "=")
+		#print(sql_str)
+		#print(sql_w_vl)
 
-		#data_infos = list(map(LogsDB._get_tablerecord_info, datas))
-		#if len(data_infos) != len(set(data_infos)):
-		#	raise Exception("cannot have twice the same type of data here")
-		# TODO: add "order by" option for data columns, use list of Query_Ref
-		# TODO: remove data values, better only take types and encode query completely in query_exp
+		# add count_only
+		count_column_id = "_COUNT"
+		if count_only:
+			sql_str = f"SELECT COUNT(*) AS {count_column_id} FROM ({sql_str})"
+
+		data_type = TableRecord_by_table[table]
+		try:
+			with self.con:
+				cur = self.con.cursor()
+				if len(sql_w_vl) == 0:
+					cur.execute(sql_str)
+				else:
+					cur.execute(sql_str, sql_w_vl)
+				if not count_only:
+					cur.row_factory = row_factory_simple(data_type._make)
+					return list(cur.fetchall())
+				else:
+					c_l = list(cur.fetchall())
+					assert(len(c_l) == 1)
+					return c_l[0][count_column_id]
+		except:
+			raise Exception("retrieval failed")
 		pass
 
 	def to_string(self, with_entries = False):

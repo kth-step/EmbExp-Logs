@@ -170,6 +170,28 @@ def op_test(db, json_args):
 	# print state of database
 	print("=" * 40)
 	print(db.to_string(True))
+
+	exp1        = logsdb.Query_Binop(op=logsdb.Query_Binop_op.LIKE, arg1=logsdb.Query_Ref(index=0, field="code"), arg2=logsdb.Query_Const(value="crazy%"))
+	res1        = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = False)
+	res1_cnt    = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = True)
+	res1_expect = [prog_22, prog_21, prog_12, prog_11]
+	assert(res1 == res1_expect)
+	assert(res1_cnt == len(res1_expect))
+
+	exp2        = logsdb.Query_Binop(op=logsdb.Query_Binop_op.EQ, arg1=logsdb.Query_Ref(index=0, field="code"), arg2=logsdb.Query_Const(value="crazy code 11"))
+	res2        = db.get_tablerecords("exp_progs", [], exp2, order_by = [(0, "id", False)], count_only = False)
+	res2_expect = [prog_11]
+	assert(res2 == res2_expect)
+
+	exp3        = logsdb.Query_Binop(op=logsdb.Query_Binop_op.IN, arg1=logsdb.Query_Ref(index=0, field="code"), arg2=logsdb.Query_Const(value=["crazy code 11", "crazy code 21"]))
+	res3        = db.get_tablerecords("exp_progs", [], exp3, order_by = [(0, "id", True), (0, "code", True)], count_only = False)
+	res3_alt    = db.get_tablerecords("exp_progs", [], exp3, order_by = [], count_only = False)
+	res3_expect = [prog_11, prog_21]
+	assert(res3 == res3_expect)
+	assert(res3_alt == res3_expect)
+
+	# TODO: add tests for interesting joins and queries with AND, OR and NOT
+
 	return True
 
 
