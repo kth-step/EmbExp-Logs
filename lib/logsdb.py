@@ -234,6 +234,7 @@ class LogsDB:
 
 		return (data_type, table)
 
+	# append new datasets, should not break database consistency constraints (we have an extra function to append to existing metadata)
 	def add_tablerecord(self, data):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
 
@@ -258,16 +259,76 @@ class LogsDB:
 				cur.execute(sql_str, sql_values)
 				rowid = cur.lastrowid
 
-			with self.con:
-				cur = self.con.cursor()
 				cur.execute(f"SELECT * FROM {table} WHERE rowid = {rowid}")
 				cur.row_factory = row_factory_simple(data_type._make)
 				return cur.fetchone()
 		except:
-			raise Exception("insertion failed")
+			raise Exception("adding data failed")
 
-	# TODO: implement appending of metadata for metadata tables (tablename ends with meta, all except "value" must match to find it, kind must be different than none, if entry doesn't exist yet, we fail)
-	# def append_tablerecord_meta(self, data):
+	# appending to existing metadata
+	# (for metadata tables, kind must be different from None/NULL)
+	# (if entry doesn't exist yet, we fail)
+	# (otherwise we append string to string - value must be a string)
+	def append_tablerecord_meta(self, data):
+		(data_type, table) = LogsDB._get_tablerecord_info(data)
+
+		# check whether we deal with a "meta" table
+		if not table.endswith("_meta"):
+			raise Exception("this is only allowed for meta tables")
+
+		# kind must be different from None
+		if data.kind == None:
+			raise Exception("'kind' must be different than None")
+
+		# prepare select query (find entry where all fields except "value" are equal)
+		fields = list(data._fields)
+		assert("value" in fields)
+		fields.remove("value")
+
+		sql_cond_strs = []
+		for f in fields:
+			sql_cond_strs.append(f"{f} = ?")
+		sql_values = list(map(lambda n: getattr(data, n), fields))
+		sql_str_base = f"SELECT * FROM {table}"
+		sql_cond_str = ("" if len(sql_values) == 0 else f" WHERE {' AND '.join(sql_cond_strs)}")
+		sql_str = sql_str_base + sql_cond_str
+		logging.info(sql_str)
+		logging.info(sql_values)
+		assert(len(sql_cond_strs) > 0)
+
+		# prepare update query, use sql_cond_str from before
+		sql_upd_str_base = f"UPDATE {table} SET value = ?"
+		sql_upd_str = sql_upd_str_base + sql_cond_str
+
+		# all in one transaction
+		try:
+			with self.con:
+				cur = self.con.cursor()
+				cur.execute(sql_str, sql_values)
+				cur.row_factory = row_factory_simple(data_type._make)
+				data_l_0 = list(cur.fetchall())
+
+				# if we cannot find a matching row, we fail
+				assert(len(data_l_0) < 2)
+				if len(data_l_0) != 1:
+					raise Exception("cannot find a matching row to append to")
+				data_0 = data_l_0[0]
+
+				# both values must be a string
+				if not ((type(data_0.value) is str) and (type(data.value) is str)):
+					raise Exception("both values must be strings for appending")
+				val_new = data_0.value + data.value
+
+				# we append and update
+				cur.execute(sql_upd_str, [val_new] + sql_values)
+				rowid = cur.lastrowid
+
+				# select again to return new metadata
+				cur.execute(f"SELECT * FROM {table} WHERE rowid = {rowid}")
+				cur.row_factory = row_factory_simple(data_type._make)
+				return cur.fetchone()
+		except:
+			raise Exception("appending metadata failed")
 
 	# for very simple matching queries
 	def get_tablerecord_matches(self, data, count_only = False):
@@ -300,7 +361,7 @@ class LogsDB:
 					cur.row_factory = row_factory_simple(data_type._make)
 					return list(cur.fetchall())
 		except:
-			raise Exception("retrieval failed")
+			raise Exception("retrieving data failed")
 
 	def _get_sql_from_exp(ids, tables, exp):
 		if type(exp) is QE_Not:
@@ -425,7 +486,7 @@ class LogsDB:
 					assert(len(c_l) == 1)
 					return c_l[0][count_column_id]
 		except:
-			raise Exception("retrieval failed")
+			raise Exception("retrieving data failed")
 
 	def to_string(self, with_entries = False):
 		res = []

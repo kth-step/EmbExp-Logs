@@ -78,6 +78,16 @@ def op_query(db, json_args):
 
 """ op:test """
 def op_test(db, json_args):
+	# helper function to check failing cases
+	def ensure_failing(f, *a):
+		try_fin = False
+		try:
+			f(*a)
+			try_fin = True
+		except Exception as e:
+			print(e)
+		assert(not try_fin)
+
 	# general tests
 	TR_db_meta_empty = ldb.TableRecord_db_meta._make([None]*4)
 	assert(TR_db_meta_empty == ldb.get_empty_TableRecord(ldb.TableRecord_db_meta))
@@ -107,13 +117,7 @@ def op_test(db, json_args):
 	assert(len(db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta")))
 		== db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta"), True))
 	# try to break uniqueness constraint
-	try_fin = False
-	try:
-		db.add_tablerecord(ldb.TableRecord_db_meta(id=None, kind="hello8", name='123', value='111'))
-		try_fin = True
-	except:
-		pass
-	assert(not try_fin)
+	ensure_failing(db.add_tablerecord, ldb.TableRecord_db_meta(id=None, kind="hello8", name='123', value='111'))
 
 	# add two holbaruns
 	def create_holbarun(i):
@@ -128,17 +132,11 @@ def op_test(db, json_args):
 	holbarun_1 = create_holbarun(1)
 	holbarun_2 = create_holbarun(2)
 	# try to break foreign key constraint
-	try_fin = False
-	try:
-		db.add_tablerecord(ldb.TableRecord_holba_runs(
+	ensure_failing(db.add_tablerecord, ldb.TableRecord_holba_runs(
 			id=None,
 			time="some new string",
 			exp_progs_lists_id = holbarun_1.exp_progs_lists_id+10000,
 			exp_exps_lists_id = holbarun_1.exp_exps_lists_id+20000))
-		try_fin = True
-	except:
-		pass
-	assert(not try_fin)
 
 	# add two progs for each run
 	def add_prog(i, holbarun):
@@ -222,6 +220,21 @@ def op_test(db, json_args):
 	res14        = db.get_tablerecords("exp_progs", [("exp_progs_lists_entries", 0), ("exp_progs_lists", 1), ("exp_progs_lists_entries", 0), ("exp_progs_lists", 3)], exp14)
 	res14_expect = [prog_22]
 	assert(res14 == res14_expect)
+
+	meta0_1 = ldb.TableRecord_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some initial value\n")
+	meta0_2 = ldb.TableRecord_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some new value\n")
+	# try to append to non-existing metadata (should not work)
+	ensure_failing(db.append_tablerecord_meta, meta0_2)
+	# then add and append successfully
+	meta1_1 = db.add_tablerecord(meta0_1)
+	meta1_2 = db.append_tablerecord_meta(meta0_2)
+	meta1_2 = db.append_tablerecord_meta(meta0_1)
+	meta1_expect = ldb.TableRecord_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some initial value\nsome new value\nsome initial value\n")
+	assert(meta1_2 == meta1_expect)
+
+	# print state of database
+	print("=" * 40)
+	print(db.to_string(True))
 
 	return True
 
