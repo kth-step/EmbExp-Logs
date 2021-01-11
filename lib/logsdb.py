@@ -136,18 +136,33 @@ def get_TableLink(a,b):
 		except KeyError:
 			raise Exception(f"there is no link between '{a}' and '{b}'")
 
+def _get_repo_rel_path(p):
+	return os.path.join(os.path.join(os.path.dirname(__file__), ".."), p)
+
 class LogsDB:
-	def __init__(self):
-		self.data_dir = "data"
-		self.backup_dir = os.path.join(self.data_dir, "backups")
-		self.database_file = os.path.join(self.data_dir, "logs.db")
+	def __init__(self, alt_db_file = None):
+		db_path = os.path.join("data", "logs.db")
+		if alt_db_file != None:
+			alt_db_file = _get_repo_rel_path(alt_db_file)
+			if not ((os.path.isfile(alt_db_file)) or (not os.path.exists(alt_db_file))):
+				raise Exception("alternative database file must be a path to an existing file or the path not should exist")
+			self.database_file = alt_db_file
+			db_dir = os.path.dirname(db_path)
+			self.backup_dir = None
+		else:
+			self.database_file = _get_repo_rel_path(db_path)
+			db_dir = os.path.dirname(db_path)
+			self.backup_dir = os.path.join(db_dir, "backups")
+
+		if not os.path.isdir(db_dir):
+			os.mkdir(db_dir)
+
+		if (self.backup_dir != None) and (not os.path.isdir(self.backup_dir)):
+			os.mkdir(self.backup_dir)
 
 	def connect(self):
 		# check if database already exists, if not create tables and version information from schema.sql
 		database_exists = os.path.isfile(self.database_file)
-
-		if not os.path.isdir(self.data_dir):
-			os.mkdir(self.data_dir)
 
 		self.con = sl.connect(self.database_file)
 		self.con.row_factory = sl.Row
@@ -203,9 +218,10 @@ class LogsDB:
 		self.close()
 
 	def backup(self):
+		if self.backup_dir == None:
+			raise Exception("backups are not enabled")
+
 		# backup both as db export and sql dump
-		if not os.path.isdir(self.backup_dir):
-			os.mkdir(self.backup_dir)
 		datetimestr = datetime.datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
 		backupfile = os.path.join(self.backup_dir, f"backup_{datetimestr}")
 		logging.info(f"backup prefix {backupfile}")

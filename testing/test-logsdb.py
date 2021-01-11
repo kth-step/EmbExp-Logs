@@ -12,9 +12,6 @@ import logsdb as ldb
 # raise the logging level
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
-# change to script's repository root directory
-os.chdir(os.path.join(os.path.dirname(__file__), ".."))
-
 def initial_db_tests(db):
 	# helper function to check failing cases
 	def ensure_failing(f, *a):
@@ -184,15 +181,20 @@ def initial_db_tests(db):
 	print(db.to_string(True))
 
 
+# clear testing database
+db_file = "data/testing.db"
+if os.path.isfile(db_file):
+	os.remove(db_file)
+
 # run initial tests on logsdb library (initializes db into defined state)
-with ldb.LogsDB() as db:
+with ldb.LogsDB(db_file) as db:
 	initial_db_tests(db)
 
 # helper to check calls to db-interface.py
 def run_db_interface_py(c,i,str_in_output=None):
 	from subprocess import Popen, PIPE, STDOUT
 	import json
-	p = Popen(["./scripts/db-interface.py", c], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+	p = Popen(["./scripts/db-interface.py", "-t", c], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
 	data_out, data_err = p.communicate(input=json.dumps(i).encode("utf-8"))
 	assert(data_err == None)
 	data = data_out.decode("utf-8")
@@ -292,7 +294,7 @@ assert(input101_ret == ret_failure)
 
 
 # print state of database
-with ldb.LogsDB() as db:
+with ldb.LogsDB(db_file) as db:
 	print("=" * 40)
 	print(db.to_string(True))
 

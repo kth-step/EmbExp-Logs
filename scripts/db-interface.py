@@ -18,6 +18,8 @@ parser.add_argument("operation",       help="operation to execute on database", 
 
 parser.add_argument("-i", "--input", help="take input as command line argument instead of stdin")
 
+parser.add_argument("-t", "--testing", help="uses testing database (i.e. for testing only)", action="store_true")
+
 parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
 
 args = parser.parse_args()
@@ -30,9 +32,7 @@ else:
 
 operation = args.operation
 input_data = args.input
-
-# change to script's repository root directory
-os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+is_testing = args.testing
 
 # parse operation arguments from stdin
 logging.info(f"parsing json arguments.")
@@ -150,7 +150,8 @@ logging.info(f"executing operation {operation}")
 opfun = opdict[operation]
 
 # create db access object
-with ldb.LogsDB() as db:
+alt_db_file = None if not is_testing else "data/testing.db"
+with ldb.LogsDB(alt_db_file) as db:
 	ret_val = opfun(db, json_arguments)
 
 # return value is serialized with json and printed on stdout
