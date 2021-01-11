@@ -41,14 +41,14 @@ TableRecord_holba_runs_meta = (
 
 TableRecord_exp_progs = (
   collections.namedtuple("TableRecord_exp_progs",
-  ["id", "code"]))
+  ["id", "arch", "code"]))
 TableRecord_exp_progs_meta = (
   collections.namedtuple("TableRecord_exp_progs_meta",
   ["exp_progs_id", "kind", "name", "value"]))
 
 TableRecord_exp_exps = (
   collections.namedtuple("TableRecord_exp_exps",
-  ["id", "exp_progs_id", "input_data"]))
+  ["id", "exp_progs_id", "type", "params", "input_data"]))
 TableRecord_exp_exps_meta = (
   collections.namedtuple("TableRecord_exp_exps_meta",
   ["exp_exps_id", "kind", "name", "value"]))

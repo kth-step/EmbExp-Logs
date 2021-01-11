@@ -32,8 +32,9 @@ CREATE TABLE holba_runs_meta (
 -- experiment programs: unique code (asm code, needs normalized code to work)
 CREATE TABLE exp_progs (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  arch TEXT NOT NULL,
   code TEXT NOT NULL,
-  CONSTRAINT UC_exp_progs UNIQUE (code)
+  CONSTRAINT UC_exp_progs UNIQUE (arch, code)
 );
 -- metadata for exp_progs
 CREATE TABLE exp_progs_meta (
@@ -50,8 +51,10 @@ CREATE TABLE exp_progs_meta (
 CREATE TABLE exp_exps (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   exp_progs_id INTEGER,
+  type TEXT NOT NULL,
+  params TEXT NOT NULL,
   input_data TEXT NOT NULL,
-  CONSTRAINT UC_exp_exps UNIQUE (exp_progs_id, input_data),
+  CONSTRAINT UC_exp_exps UNIQUE (exp_progs_id, type, params, input_data),
   CONSTRAINT FK_exp_progs FOREIGN KEY (exp_progs_id) REFERENCES exp_progs(id)
 );
 -- metadata for exp_exps

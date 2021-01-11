@@ -73,7 +73,7 @@ with ldb.LogsDB() as db:
 
 	# add two progs for each run
 	def add_prog(i, holbarun):
-		prog = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs")._replace(code = f"crazy code {i}"))
+		prog = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs")._replace(arch = "arch5000", code = f"crazy code {i}"))
 		db.add_tablerecord(ldb.TableRecord_exp_progs_lists_entries(exp_progs_lists_id=holbarun.exp_progs_lists_id, exp_progs_id=prog.id))
 		return prog
 
@@ -86,7 +86,8 @@ with ldb.LogsDB() as db:
 
 	# add a few experiments, two per program
 	def add_exp(i, prog, holbarun):
-		exp = db.add_tablerecord(ldb.TableRecord_exp_exps(id=None, exp_progs_id=prog.id, input_data=f"crazy inputs {i}"))
+		exp = db.add_tablerecord(ldb.TableRecord_exp_exps(id=None, exp_progs_id=prog.id, type="exps2", params="amazing_model", input_data=f"crazy inputs {i}"))
+		db.add_tablerecord(ldb.TableRecord_exp_exps_lists_entries(exp_exps_lists_id=holbarun.exp_exps_lists_id, exp_exps_id=exp.id))
 		return exp
 
 	exp_111 = add_exp(111, prog_11, holbarun_1)
@@ -164,6 +165,14 @@ with ldb.LogsDB() as db:
 	meta1_2 = db.append_tablerecord_meta(meta0_1)
 	meta1_expect = ldb.TableRecord_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some initial value\nsome new value\nsome initial value\n")
 	assert(meta1_2 == meta1_expect)
+
+	# add some metadata to a program and an experiment
+	meta2 = ldb.TableRecord_exp_progs_meta(exp_progs_id=prog_12.id, kind="test2", name="property2", value="prog_12 special data\n")
+	meta2_1 = db.add_tablerecord(meta2)
+	assert(meta2 == meta2_1)
+	meta3 = ldb.TableRecord_exp_exps_meta(exp_exps_id=exp_122.id, kind="test3", name="property3", value="exp_122 special data\n")
+	meta3_1 = db.add_tablerecord(meta3)
+	assert(meta3 == meta3_1)
 
 	# print state of database
 	print("=" * 40)
