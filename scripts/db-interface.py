@@ -60,18 +60,24 @@ def op_create(db, json_args):
 	# input check
 	if not type(json_args) is dict:
 		raise Exception("wrong input, must be a dictionary")
-	if any(map(lambda x: not x in ["table", "values"], json_args.keys())):
+	if any(map(lambda x: not x in ["table", "values", "match_existing"], json_args.keys())):
 		raise Exception("unknown parameter in input")
 	# fetching and processing of arguments
-	# TODO: add parameter here and in logsdb to (in one transaction) match existing entries and create new entry only if matching does not exist yet
 	table = json_args["table"]
 	values = json_args["values"]
+	match_existing = False
+	try:
+		match_existing = json_args["match_existing"]
+	except KeyError:
+		pass
+	if not type(match_existing) is bool:
+		raise Exception("wrong input, 'match_existing' must be a bool")
 	if not type(values) is dict:
 		raise Exception("wrong input, 'values' must be a dictionary")
 	tr = ldb.get_empty_TableRecord(table)
 	data = tr._replace(**values)
 	# create an entry, basic definition: only essential data
-	return db.add_tablerecord(data)._asdict()
+	return db.add_tablerecord(data, match_existing=match_existing)._asdict()
 
 
 """ op:append """

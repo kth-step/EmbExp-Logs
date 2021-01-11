@@ -189,7 +189,7 @@ with ldb.LogsDB() as db:
 	initial_db_tests(db)
 
 # helper to check calls to db-interface.py
-def run_db_interface_py(c,i):
+def run_db_interface_py(c,i,str_in_output=None):
 	from subprocess import Popen, PIPE, STDOUT
 	import json
 	p = Popen(["./scripts/db-interface.py", c], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
@@ -204,6 +204,11 @@ def run_db_interface_py(c,i):
 
 	success = p.returncode == 0
 	res     = None
+
+	if str_in_output != None:
+		if not str_in_output in data:
+			raise Exception("expected output not found: " + str_in_output)
+
 	if success:
 		#print(i)
 		#print(data)
@@ -221,8 +226,8 @@ input1        = {"table": "exp_progs_lists",
 input1_2      = copy.deepcopy(input1)
 input1_2["values"]["id"] = 1234
 input1_ret    = run_db_interface_py("create", input1)
-input1_2_ret  = run_db_interface_py("create", input1_2)
-input1_3_ret  = run_db_interface_py("create", input1)
+input1_2_ret  = run_db_interface_py("create", input1_2, "the id cannot be forced on entries")
+input1_3_ret  = run_db_interface_py("create", input1, "UNIQUE constraint failed: exp_progs_lists.name")
 input1_expect = (True, {"id": 3, "name": "holbarun_3", "description": None})
 assert(input1_ret == input1_expect)
 assert(input1_2_ret == ret_failure)
@@ -255,6 +260,7 @@ meta1_expect = (True, {"holba_runs_id": 3, "kind": "test9", "name": "property9",
 assert(meta1_ret == meta1_expect)
 
 # simple match query
+print(("-" * 20) + "> query1")
 query1        = {"type": "match_simple",
                  "query": {"table": "holba_runs_meta",
                            "values": {}}}
@@ -262,6 +268,7 @@ query1_ret    = run_db_interface_py("query", query1)
 query1_expect = (True, [["holba_runs_id", "kind", "name", "value"], [[1, "test1", "property1", "some initial value\nsome new value\nsome initial value\n"], [3, "test9", "property9", "value 0\nvalue 1\nvalue 1\n"]]])
 assert(query1_ret == query1_expect)
 
+print(("-" * 20) + "> query2")
 query2        = {"type": "match_simple",
                  "query": {"table": "holba_runs",
                            "values": {"time": "time 1"}}}
@@ -269,9 +276,26 @@ query2_ret    = run_db_interface_py("query", query2)
 query2_expect = (True, [['id', 'time', 'exp_progs_lists_id', 'exp_exps_lists_id'], [[1, 'time 1', 1, 1]]])
 assert(query2_ret == query2_expect)
 
+# try to create another "exp_progs_lists" with "match_existing"
+print(("-" * 20) + "> input100")
+input100      = copy.deepcopy(input1)
+input100["match_existing"] = True
+input100_ret  = run_db_interface_py("create", input100)
+assert(input100_ret == input1_expect)
+
+# the same should fail if we alter the description, but due to name uniqueness again
+print(("-" * 20) + "> input101")
+input101      = copy.deepcopy(input100)
+input101["values"]["description"] = "some fancy description"
+input101_ret  = run_db_interface_py("create", input101, "UNIQUE constraint failed: exp_progs_lists.name")
+assert(input101_ret == ret_failure)
+
 
 # print state of database
 with ldb.LogsDB() as db:
 	print("=" * 40)
 	print(db.to_string(True))
 
+# all successful
+print()
+print("All tests finished successfully.")

@@ -234,9 +234,11 @@ class LogsDB:
 
 		return (data_type, table)
 
-	# append new datasets, should not break database consistency constraints (we have an extra function to append to existing metadata)
-	def add_tablerecord(self, data):
+	# append new datasets, should not break database integrity constraints (we have an extra function to append to existing metadata)
+	def add_tablerecord(self, data, match_existing = False):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
+
+		# match_existing: match existing entries: matches existing, or creates new entry only if matching does not exist yet
 
 		fields = list(data._fields)
 		# tables with a generic id field need special treatment
@@ -245,18 +247,39 @@ class LogsDB:
 				raise Exception(f"the id cannot be forced on entries for table '{table}', must be None here")
 			fields.remove("id")
 
+		fields = list(filter(lambda n: getattr(data, n) != None, fields))
+		sql_values = list(map(lambda n: getattr(data, n), fields))
+
+		# prepare sql query for matching
+		sql_m_str = LogsDB._prep_sql_match(table, fields)
+
+		# prepare sql query for insertion
 		sql_fields_str = f"({', '.join(fields)})"
 		sql_values_str = f"({', '.join(['?'] * len(fields))})"
 		sql_values     = list(map(lambda n: getattr(data, n), fields))
 		sql_str = f"INSERT INTO {table} {sql_fields_str} VALUES {sql_values_str}"
 		logging.info(sql_str)
-		logging.info(sql_values)
 
 		try:
 			rowid = None
 			with self.con:
 				cur = self.con.cursor()
-				cur.execute(sql_str, sql_values)
+				# if there is an existing entry, take this one
+				if match_existing:
+					if len(fields) == 0:
+						cur.execute(sql_m_str)
+					else:
+						cur.execute(sql_m_str, sql_values)
+					cur.row_factory = row_factory_simple(data_type._make)
+					r = list(cur.fetchall())
+					assert(len(r) == 0 or len(r) == 1)
+					if len(r) == 1:
+						return r[0]
+
+				if len(fields) == 0:
+					cur.execute(sql_str)
+				else:
+					cur.execute(sql_str, sql_values)
 				rowid = cur.lastrowid
 
 				cur.execute(f"SELECT * FROM {table} WHERE rowid = {rowid}")
@@ -329,25 +352,29 @@ class LogsDB:
 		except:
 			raise Exception("appending metadata failed")
 
-	# for very simple matching queries
-	def get_tablerecord_matches(self, data, count_only = False):
-		(data_type, table) = LogsDB._get_tablerecord_info(data)
-		fields = list(filter(lambda n: getattr(data, n) != None, data._fields))
-
+	def _prep_sql_match(table, fields):
 		sql_cond_strs = []
 		for f in fields:
 			sql_cond_strs.append(f"{f} = ?")
 
-		sql_values = list(map(lambda n: getattr(data, n), fields))
 		sql_str_base = f"SELECT * FROM {table}"
-		sql_str = sql_str_base + ("" if len(sql_values) == 0 else f" WHERE {' AND '.join(sql_cond_strs)}")
+		sql_str = sql_str_base + ("" if len(fields) == 0 else f" WHERE {' AND '.join(sql_cond_strs)}")
 		logging.info(sql_str)
-		logging.info(sql_values)
+		return sql_str
+
+	# for very simple matching queries
+	def get_tablerecord_matches(self, data, count_only = False):
+		(data_type, table) = LogsDB._get_tablerecord_info(data)
+
+		fields = list(filter(lambda n: getattr(data, n) != None, data._fields))
+		sql_values = list(map(lambda n: getattr(data, n), fields))
+
+		sql_str = LogsDB._prep_sql_match(table, fields)
 
 		try:
 			with self.con:
 				cur = self.con.cursor()
-				if len(sql_values) == 0:
+				if len(fields) == 0:
 					cur.execute(sql_str)
 				else:
 					cur.execute(sql_str, sql_values)
