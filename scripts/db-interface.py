@@ -57,9 +57,13 @@ def op_importdb(db, json_args):
 
 """ op:create """
 def op_create(db, json_args):
-	raise Exception("not implemented")
+	table = json_args["datatype"]
+	tr = ldb.get_empty_TableRecord(table)
+	data = tr._replace(**json_args["fields"])
+	if "id" in json_args["fields"].keys():
+		raise Exception("setting the id field is not allowed")
 	# create an entry, basic definition: only essential data
-	return False
+	return db.add_tablerecord(data)._asdict()
 
 
 """ op:append """

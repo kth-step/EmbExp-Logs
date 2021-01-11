@@ -8,9 +8,13 @@ import logging
 
 import logsdb as ldb
 
+# raise the logging level
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
-with ldb.LogsDB() as db:
+# change to script's repository root directory
+os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+
+def initial_db_tests(db):
 	# helper function to check failing cases
 	def ensure_failing(f, *a):
 		try_fin = False
@@ -177,3 +181,50 @@ with ldb.LogsDB() as db:
 	# print state of database
 	print("=" * 40)
 	print(db.to_string(True))
+
+
+# run initial tests on logsdb library (initializes db into defined state)
+with ldb.LogsDB() as db:
+	initial_db_tests(db)
+
+# helper to check calls to db-interface.py
+def run_db_interface_py(c,i):
+	from subprocess import Popen, PIPE, STDOUT
+	import json
+	p = Popen(["./scripts/db-interface.py", c], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+	data_out, data_err = p.communicate(input=json.dumps(i).encode("utf-8"))
+	assert(data_err == None)
+	data = data_out.decode("utf-8")
+	try:
+		p.wait(timeout=5)
+	except:
+		p.kill()
+	assert(p.returncode != None)
+
+	success = p.returncode == 0
+	res     = None
+	if success:
+		res = json.loads(data)
+	else:
+		print(data)
+	return (success, res)
+
+
+input1        = {"datatype": "exp_progs_lists",
+                 "fields": {"name": "holbarun_3"}}
+input1_ret    = run_db_interface_py("create", input1)
+input1_expect = (True, {"id": 3, "name": "holbarun_3", "description": None})
+assert(input1_ret == input1_expect)
+
+input2        = {"datatype": "exp_exps_lists",
+                 "fields": {"name": "holbarun_3"}}
+input2_ret    = run_db_interface_py("create", input2)
+input2_expect = input1_expect
+assert(input2_ret == input2_expect)
+
+input3        = {"datatype": "holba_runs",
+                 "fields": {"time": "special holbarun_3 time", "exp_progs_lists_id": input1_expect[1]["id"], "exp_exps_lists_id": input2_expect[1]["id"]}}
+input3_ret    = run_db_interface_py("create", input3)
+input3_expect = (True, {"id": 3, "time": "special holbarun_3 time", "exp_progs_lists_id": 3, "exp_exps_lists_id": 3})
+assert(input3_ret == input3_expect)
+
