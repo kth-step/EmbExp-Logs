@@ -321,12 +321,11 @@ class LogsDB:
 
 				# we append and update
 				cur.execute(sql_upd_str, [val_new] + sql_values)
-				rowid = cur.lastrowid
 
 				# select again to return new metadata
-				cur.execute(f"SELECT * FROM {table} WHERE rowid = {rowid}")
+				cur.execute(sql_str, sql_values)
 				cur.row_factory = row_factory_simple(data_type._make)
-				return cur.fetchone()
+				return cur.fetchone() 
 		except:
 			raise Exception("appending metadata failed")
 

@@ -5,6 +5,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "../lib"))
 
 import logging
+import copy
 
 import logsdb as ldb
 
@@ -209,22 +210,51 @@ def run_db_interface_py(c,i):
 		print(data)
 	return (success, res)
 
+ret_failure = (False, None)
 
-input1        = {"datatype": "exp_progs_lists",
-                 "fields": {"name": "holbarun_3"}}
+# create a few entries
+print(("-" * 20) + "> input1")
+input1        = {"table": "exp_progs_lists",
+                 "values": {"name": "holbarun_3"}}
+input1_2      = copy.deepcopy(input1)
+input1_2["values"]["id"] = 1234
 input1_ret    = run_db_interface_py("create", input1)
+input1_2_ret  = run_db_interface_py("create", input1_2)
+input1_3_ret  = run_db_interface_py("create", input1)
 input1_expect = (True, {"id": 3, "name": "holbarun_3", "description": None})
 assert(input1_ret == input1_expect)
+assert(input1_2_ret == ret_failure)
+assert(input1_3_ret == ret_failure)
 
-input2        = {"datatype": "exp_exps_lists",
-                 "fields": {"name": "holbarun_3"}}
+print(("-" * 20) + "> input2")
+input2        = {"table": "exp_exps_lists",
+                 "values": {"name": "holbarun_3"}}
 input2_ret    = run_db_interface_py("create", input2)
 input2_expect = input1_expect
 assert(input2_ret == input2_expect)
 
-input3        = {"datatype": "holba_runs",
-                 "fields": {"time": "special holbarun_3 time", "exp_progs_lists_id": input1_expect[1]["id"], "exp_exps_lists_id": input2_expect[1]["id"]}}
+print(("-" * 20) + "> input3")
+input3        = {"table": "holba_runs",
+                 "values": {"time": "special holbarun_3 time", "exp_progs_lists_id": input1_expect[1]["id"], "exp_exps_lists_id": input2_expect[1]["id"]}}
 input3_ret    = run_db_interface_py("create", input3)
 input3_expect = (True, {"id": 3, "time": "special holbarun_3 time", "exp_progs_lists_id": 3, "exp_exps_lists_id": 3})
 assert(input3_ret == input3_expect)
+
+# create and append metadata
+print(("-" * 20) + "> meta1")
+meta1_0       = {"table": "holba_runs_meta",
+                 "values": {"holba_runs_id":input3_expect[1]["id"], "kind":"test9", "name":"property9", "value":"value 0\n"}}
+meta1_1       = copy.deepcopy(meta1_0)
+meta1_1["values"]["value"]="value 1\n"
+run_db_interface_py("create", meta1_0)
+run_db_interface_py("append", meta1_1)
+meta1_ret = run_db_interface_py("append", meta1_1)
+meta1_expect = (True, {"holba_runs_id": 3, "kind": "test9", "name": "property9", "value": "value 0\nvalue 1\nvalue 1\n"})
+assert(meta1_ret == meta1_expect)
+
+
+# print state of database
+with ldb.LogsDB() as db:
+	print("=" * 40)
+	print(db.to_string(True))
 

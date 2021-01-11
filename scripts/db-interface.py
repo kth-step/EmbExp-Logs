@@ -57,20 +57,21 @@ def op_importdb(db, json_args):
 
 """ op:create """
 def op_create(db, json_args):
-	table = json_args["datatype"]
+	# TODO: add parameter here and in logsdb to (in one transaction) match existing entries and create new entry only if matching does not exist yet
+	table = json_args["table"]
 	tr = ldb.get_empty_TableRecord(table)
-	data = tr._replace(**json_args["fields"])
-	if "id" in json_args["fields"].keys():
-		raise Exception("setting the id field is not allowed")
+	data = tr._replace(**json_args["values"])
 	# create an entry, basic definition: only essential data
 	return db.add_tablerecord(data)._asdict()
 
 
 """ op:append """
 def op_append(db, json_args):
-	raise Exception("not implemented")
-	# append flexible data to an entry
-	return False
+	table = json_args["table"]
+	tr = ldb.get_empty_TableRecord(table)
+	data = tr._replace(**json_args["values"])
+	# append string data to an existing entry
+	return db.append_tablerecord_meta(data)._asdict()
 
 
 """ op:query """
