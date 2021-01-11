@@ -267,7 +267,7 @@ query1        = {"type": "match_simple",
                  "query": {"table": "holba_runs_meta",
                            "values": {}}}
 query1_ret    = run_db_interface_py("query", query1)
-query1_expect = (True, [["holba_runs_id", "kind", "name", "value"], [[1, "test1", "property1", "some initial value\nsome new value\nsome initial value\n"], [3, "test9", "property9", "value 0\nvalue 1\nvalue 1\n"]]])
+query1_expect = (True, {"fields": ["holba_runs_id", "kind", "name", "value"], "rows": [[1, "test1", "property1", "some initial value\nsome new value\nsome initial value\n"], [3, "test9", "property9", "value 0\nvalue 1\nvalue 1\n"]]})
 assert(query1_ret == query1_expect)
 
 print(("-" * 20) + "> query2")
@@ -275,7 +275,7 @@ query2        = {"type": "match_simple",
                  "query": {"table": "holba_runs",
                            "values": {"time": "time 1"}}}
 query2_ret    = run_db_interface_py("query", query2)
-query2_expect = (True, [['id', 'time', 'exp_progs_lists_id', 'exp_exps_lists_id'], [[1, 'time 1', 1, 1]]])
+query2_expect = (True, {"fields": ['id', 'time', 'exp_progs_lists_id', 'exp_exps_lists_id'], "rows": [[1, 'time 1', 1, 1]]})
 assert(query2_ret == query2_expect)
 
 # try to create another "exp_progs_lists" with "match_existing"

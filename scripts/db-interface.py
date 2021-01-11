@@ -129,7 +129,7 @@ def op_query(db, json_args):
 		fields = list(tr._fields)
 		matches = db.get_tablerecord_matches(data)
 		rows = list(map(lambda m: list(map(lambda x: getattr(m, x), fields)), matches))
-		res = (fields, rows)
+		res = {"fields": fields, "rows": rows}
 		return res
 	# b) join-based query
 	elif q_type == "join_based":
