@@ -27,8 +27,8 @@ def initial_db_tests(db):
 		assert(not try_fin)
 
 	# general tests
-	TR_db_meta_empty = ldb.TableRecord_db_meta._make([None]*4)
-	assert(TR_db_meta_empty == ldb.get_empty_TableRecord(ldb.TableRecord_db_meta))
+	TR_db_meta_empty = ldb.TR_db_meta._make([None]*4)
+	assert(TR_db_meta_empty == ldb.get_empty_TableRecord(ldb.TR_db_meta))
 	assert(TR_db_meta_empty == ldb.get_empty_TableRecord("db_meta"))
 
 	# make sure that the database is cleared
@@ -44,9 +44,9 @@ def initial_db_tests(db):
 
 	# add a bit of metadata
 	_db_meta = db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta"))
-	_db_meta += [db.add_tablerecord(ldb.TableRecord_db_meta(id=None, kind=None, name='hellO', value='me123'))]
-	_db_meta += [db.add_tablerecord(ldb.TableRecord_db_meta(id=None, kind=None, name='hellO', value='me123'))]
-	_db_meta += [db.add_tablerecord(ldb.TableRecord_db_meta(id=None, kind="hello8", name='123', value='me123'))]
+	_db_meta += [db.add_tablerecord(ldb.TR_db_meta(id=None, kind=None, name='hellO', value='me123'))]
+	_db_meta += [db.add_tablerecord(ldb.TR_db_meta(id=None, kind=None, name='hellO', value='me123'))]
+	_db_meta += [db.add_tablerecord(ldb.TR_db_meta(id=None, kind="hello8", name='123', value='me123'))]
 	_db_meta_1 = db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta"))
 	#print(_db_meta)
 	#print(_db_meta_1)
@@ -55,13 +55,13 @@ def initial_db_tests(db):
 	assert(len(db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta")))
 		== db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta"), True))
 	# try to break uniqueness constraint
-	ensure_failing(db.add_tablerecord, ldb.TableRecord_db_meta(id=None, kind="hello8", name='123', value='111'))
+	ensure_failing(db.add_tablerecord, ldb.TR_db_meta(id=None, kind="hello8", name='123', value='111'))
 
 	# add two holbaruns
 	def create_holbarun(i):
 		progs_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs_lists")._replace(name = f"holbarun_{i}"))
 		exps_list  = db.add_tablerecord(ldb.get_empty_TableRecord("exp_exps_lists")._replace(name =  f"holbarun_{i}"))
-		holbarun   = db.add_tablerecord(ldb.TableRecord_holba_runs(
+		holbarun   = db.add_tablerecord(ldb.TR_holba_runs(
 			id=None,
 			time=f"time {i}",
 			exp_progs_lists_id = progs_list.id,
@@ -70,7 +70,7 @@ def initial_db_tests(db):
 	holbarun_1 = create_holbarun(1)
 	holbarun_2 = create_holbarun(2)
 	# try to break foreign key constraint
-	ensure_failing(db.add_tablerecord, ldb.TableRecord_holba_runs(
+	ensure_failing(db.add_tablerecord, ldb.TR_holba_runs(
 			id=None,
 			time="some new string",
 			exp_progs_lists_id = holbarun_1.exp_progs_lists_id+10000,
@@ -79,7 +79,7 @@ def initial_db_tests(db):
 	# add two progs for each run
 	def add_prog(i, holbarun):
 		prog = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs")._replace(arch = "arch5000", code = f"crazy code {i}"))
-		db.add_tablerecord(ldb.TableRecord_exp_progs_lists_entries(exp_progs_lists_id=holbarun.exp_progs_lists_id, exp_progs_id=prog.id))
+		db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=holbarun.exp_progs_lists_id, exp_progs_id=prog.id))
 		return prog
 
 	prog_11 = add_prog(11, holbarun_1)
@@ -87,12 +87,12 @@ def initial_db_tests(db):
 	prog_21 = add_prog(21, holbarun_2)
 	prog_22 = add_prog(22, holbarun_2)
 	# add one program in the list of the other run, this should work
-	db.add_tablerecord(ldb.TableRecord_exp_progs_lists_entries(exp_progs_lists_id=holbarun_1.exp_progs_lists_id, exp_progs_id=prog_22.id))
+	db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=holbarun_1.exp_progs_lists_id, exp_progs_id=prog_22.id))
 
 	# add a few experiments, two per program
 	def add_exp(i, prog, holbarun):
-		exp = db.add_tablerecord(ldb.TableRecord_exp_exps(id=None, exp_progs_id=prog.id, type="exps2", params="amazing_model", input_data=f"crazy inputs {i}"))
-		db.add_tablerecord(ldb.TableRecord_exp_exps_lists_entries(exp_exps_lists_id=holbarun.exp_exps_lists_id, exp_exps_id=exp.id))
+		exp = db.add_tablerecord(ldb.TR_exp_exps(id=None, exp_progs_id=prog.id, type="exps2", params="amazing_model", input_data=f"crazy inputs {i}"))
+		db.add_tablerecord(ldb.TR_exp_exps_lists_entries(exp_exps_lists_id=holbarun.exp_exps_lists_id, exp_exps_id=exp.id))
 		return exp
 
 	exp_111 = add_exp(111, prog_11, holbarun_1)
@@ -114,7 +114,7 @@ def initial_db_tests(db):
 	res1_cnt2    = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = True, id_only = True)
 	res1_alt     = db.get_tablerecords("exp_progs", [], exp1, order_by = [(0, "id", False)], count_only = False, id_only = True)
 	res1_expect  = [prog_22, prog_21, prog_12, prog_11]
-	res1_expect_id = list(map(lambda x: ldb.TableRecord_id_only._make([x.id]), res1_expect))
+	res1_expect_id = list(map(lambda x: ldb.TR_id_only._make([x.id]), res1_expect))
 	assert(res1 == res1_expect)
 	assert(res1_cnt == len(res1_expect))
 	assert(res1_cnt2 == res1_cnt)
@@ -160,22 +160,22 @@ def initial_db_tests(db):
 	res14_expect = [prog_22]
 	assert(res14 == res14_expect)
 
-	meta0_1 = ldb.TableRecord_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some initial value\n")
-	meta0_2 = ldb.TableRecord_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some new value\n")
+	meta0_1 = ldb.TR_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some initial value\n")
+	meta0_2 = ldb.TR_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some new value\n")
 	# try to append to non-existing metadata (should not work)
 	ensure_failing(db.append_tablerecord_meta, meta0_2)
 	# then add and append successfully
 	meta1_1 = db.add_tablerecord(meta0_1)
 	meta1_2 = db.append_tablerecord_meta(meta0_2)
 	meta1_2 = db.append_tablerecord_meta(meta0_1)
-	meta1_expect = ldb.TableRecord_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some initial value\nsome new value\nsome initial value\n")
+	meta1_expect = ldb.TR_holba_runs_meta(holba_runs_id=holbarun_1.id, kind="test1", name="property1", value="some initial value\nsome new value\nsome initial value\n")
 	assert(meta1_2 == meta1_expect)
 
 	# add some metadata to a program and an experiment
-	meta2 = ldb.TableRecord_exp_progs_meta(exp_progs_id=prog_12.id, kind="test2", name="property2", value="prog_12 special data\n")
+	meta2 = ldb.TR_exp_progs_meta(exp_progs_id=prog_12.id, kind="test2", name="property2", value="prog_12 special data\n")
 	meta2_1 = db.add_tablerecord(meta2)
 	assert(meta2 == meta2_1)
-	meta3 = ldb.TableRecord_exp_exps_meta(exp_exps_id=exp_122.id, kind="test3", name="property3", value="exp_122 special data\n")
+	meta3 = ldb.TR_exp_exps_meta(exp_exps_id=exp_122.id, kind="test3", name="property3", value="exp_122 special data\n")
 	meta3_1 = db.add_tablerecord(meta3)
 	assert(meta3 == meta3_1)
 

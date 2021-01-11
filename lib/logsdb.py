@@ -32,82 +32,82 @@ QE_Ref = (
   ["index", "field"]))
 
 # data types for representation of records in tables of database
-TableRecord_holba_runs = (
-  collections.namedtuple("TableRecord_holba_runs",
+TR_holba_runs = (
+  collections.namedtuple("TR_holba_runs",
   ["id", "time", "exp_progs_lists_id", "exp_exps_lists_id"]))
-TableRecord_holba_runs_meta = (
-  collections.namedtuple("TableRecord_holba_runs_meta",
+TR_holba_runs_meta = (
+  collections.namedtuple("TR_holba_runs_meta",
   ["holba_runs_id", "kind", "name", "value"]))
 
-TableRecord_exp_progs = (
-  collections.namedtuple("TableRecord_exp_progs",
+TR_exp_progs = (
+  collections.namedtuple("TR_exp_progs",
   ["id", "arch", "code"]))
-TableRecord_exp_progs_meta = (
-  collections.namedtuple("TableRecord_exp_progs_meta",
+TR_exp_progs_meta = (
+  collections.namedtuple("TR_exp_progs_meta",
   ["exp_progs_id", "kind", "name", "value"]))
 
-TableRecord_exp_exps = (
-  collections.namedtuple("TableRecord_exp_exps",
+TR_exp_exps = (
+  collections.namedtuple("TR_exp_exps",
   ["id", "exp_progs_id", "type", "params", "input_data"]))
-TableRecord_exp_exps_meta = (
-  collections.namedtuple("TableRecord_exp_exps_meta",
+TR_exp_exps_meta = (
+  collections.namedtuple("TR_exp_exps_meta",
   ["exp_exps_id", "kind", "name", "value"]))
 
-TableRecord_exp_progs_lists = (
-  collections.namedtuple("TableRecord_exp_progs_lists",
+TR_exp_progs_lists = (
+  collections.namedtuple("TR_exp_progs_lists",
   ["id", "name", "description"]))
-TableRecord_exp_progs_lists_entries = (
-  collections.namedtuple("TableRecord_exp_progs_lists_entries",
+TR_exp_progs_lists_entries = (
+  collections.namedtuple("TR_exp_progs_lists_entries",
   ["exp_progs_lists_id", "exp_progs_id"]))
 
-TableRecord_exp_exps_lists = (
-  collections.namedtuple("TableRecord_exp_exps_lists",
+TR_exp_exps_lists = (
+  collections.namedtuple("TR_exp_exps_lists",
   ["id", "name", "description"]))
-TableRecord_exp_exps_lists_entries = (
-  collections.namedtuple("TableRecord_exp_exps_lists_entries",
+TR_exp_exps_lists_entries = (
+  collections.namedtuple("TR_exp_exps_lists_entries",
   ["exp_exps_lists_id", "exp_exps_id"]))
 
-TableRecord_db_meta = (
-  collections.namedtuple("TableRecord_db_meta",
+TR_db_meta = (
+  collections.namedtuple("TR_db_meta",
   ["id", "kind", "name", "value"]))
 
-TableRecord_id_only = (
-  collections.namedtuple("TableRecord_id_only",
+TR_id_only = (
+  collections.namedtuple("TR_id_only",
   ["id"]))
 
-TableRecord_by_table = {
+TR_by_table = {
   "holba_runs" :
-    TableRecord_holba_runs,
+    TR_holba_runs,
   "holba_runs_meta" :
-    TableRecord_holba_runs_meta,
+    TR_holba_runs_meta,
   "exp_progs" :
-    TableRecord_exp_progs,
+    TR_exp_progs,
   "exp_progs_meta" :
-    TableRecord_exp_progs_meta,
+    TR_exp_progs_meta,
   "exp_exps" :
-    TableRecord_exp_exps,
+    TR_exp_exps,
   "exp_exps_meta" :
-    TableRecord_exp_exps_meta,
+    TR_exp_exps_meta,
   "exp_progs_lists" :
-    TableRecord_exp_progs_lists,
+    TR_exp_progs_lists,
   "exp_progs_lists_entries" :
-    TableRecord_exp_progs_lists_entries,
+    TR_exp_progs_lists_entries,
   "exp_exps_lists" :
-    TableRecord_exp_exps_lists,
+    TR_exp_exps_lists,
   "exp_exps_lists_entries" :
-    TableRecord_exp_exps_lists_entries,
+    TR_exp_exps_lists_entries,
   "db_meta" :
-    TableRecord_db_meta
+    TR_db_meta
   }
 
-tables_all    = TableRecord_by_table.keys()
+tables_all    = TR_by_table.keys()
 
 def row_factory_simple(mfun):
 	return (lambda _,b: mfun(b))
 
 def get_empty_TableRecord(t):
 	if type(t) == str:
-		t = TableRecord_by_table[t]
+		t = TR_by_table[t]
 	return t._make([None] * len(t._fields))
 
 # represent table links
@@ -165,11 +165,11 @@ class LogsDB:
 			cur.execute(f"SELECT * FROM db_meta WHERE id = 0")
 			#logging.debug(cur.fetchone().keys()) # gives keys for sqlite query with row factory sl.Row
 			# assert that db version is correct
-			cur.row_factory = row_factory_simple(TableRecord_by_table["db_meta"]._make)
+			cur.row_factory = row_factory_simple(TR_by_table["db_meta"]._make)
 			versionrows = cur.fetchall()
 			try:
 				assert(len(versionrows) == 1)
-				assert(versionrows[0] == TableRecord_db_meta(id=0, kind="logsdb", name="version", value="1"))
+				assert(versionrows[0] == TR_db_meta(id=0, kind="logsdb", name="version", value="1"))
 				logging.info(versionrows[0])
 			except AssertionError:
 				raise Exception("db version could not be determined or is incorrect")
@@ -224,13 +224,13 @@ class LogsDB:
 	def _get_tablerecord_info(data):
 		data_type = type(data)
 		table = None
-		for k,v in TableRecord_by_table.items():
+		for k,v in TR_by_table.items():
 			if v == data_type:
 				assert(table == None)
 				table = k
-		# check whether type of data is in TableRecord_by_table
+		# check whether type of data is in TR_by_table
 		if table == None:
-			raise Exception("the data must be of a type available in TableRecord_by_table")
+			raise Exception("the data must be of a type available in TR_by_table")
 
 		return (data_type, table)
 
@@ -389,7 +389,7 @@ class LogsDB:
 			field = exp.field
 			table_id = ids[idx]
 			table = tables[idx]
-			if not field in TableRecord_by_table[table]._fields:
+			if not field in TR_by_table[table]._fields:
 				raise Exception("field '{field}' is not in table '{table}'")
 			return (f"{table_id}.{field}", [])
 		else:
@@ -435,7 +435,7 @@ class LogsDB:
 			if idx >= len(_tables):
 				raise Exception("index out of range")
 			t = _tables[idx]
-			if not fld in TableRecord_by_table[t]._fields:
+			if not fld in TR_by_table[t]._fields:
 				raise Exception("field '{fld}' is not in table '{t}'")
 			asc_str = "ASC" if asc else "DESC"
 			order_by_l.append(f"{_tables_ids[idx]}.{fld} {asc_str}")
@@ -466,7 +466,7 @@ class LogsDB:
 		if count_only:
 			sql_str = f"SELECT COUNT(*) AS {count_column_id} FROM ({sql_str})"
 
-		data_type = TableRecord_by_table[table]
+		data_type = TR_by_table[table]
 		try:
 			with self.con:
 				cur = self.con.cursor()
@@ -478,7 +478,7 @@ class LogsDB:
 					if not id_only:
 						cur.row_factory = row_factory_simple(data_type._make)
 					else:
-						cur.row_factory = row_factory_simple(TableRecord_id_only._make)
+						cur.row_factory = row_factory_simple(TR_id_only._make)
 					return list(cur.fetchall())
 				else:
 					c_l = list(cur.fetchall())
@@ -497,20 +497,20 @@ class LogsDB:
 			# skip sqlite internal tables
 			if t in ["sqlite_sequence"]:
 				continue
-			res.append(f"- {t}")
 			try:
-				TableRecord_t = TableRecord_by_table[t]
+				TR_t = TR_by_table[t]
 			except KeyError:
 				raise Exception("unknown table: " + t)
 			cur.execute(f"SELECT * FROM {t}")
-			cur.row_factory = row_factory_simple(TableRecord_t._make)
+			cur.row_factory = row_factory_simple(TR_t._make)
 			res_ = []
 			res_num = 0
 			for e in cur:
 				res_num += 1
 				if with_entries:
-					res_.append(f"  - {e}")
-			res.append(f"  (entries: {res_num})")
+					res_.append(f"  - {list(map(lambda x: e._asdict()[x], TR_t._fields))}")
+			res.append(f"- {t} ({res_num} entries)")
+			res.append(f"  {TR_t._fields}")
 			res += res_
 		return "\n".join(res)
 
