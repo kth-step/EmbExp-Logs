@@ -170,7 +170,7 @@ class LogsDB:
 		if not database_exists:
 			logging.info(f"no database. creating tables and version information")
 			# create tables and finally version information
-			with open("lib/schema.sql", "r") as f:
+			with open(_get_repo_rel_path("lib/schema.sql"), "r") as f:
 				with self.con:
 					self.con.executescript(f.read())
 		else:
