@@ -205,6 +205,8 @@ def run_db_interface_py(c,i):
 	success = p.returncode == 0
 	res     = None
 	if success:
+		#print(i)
+		#print(data)
 		res = json.loads(data)
 	else:
 		print(data)
@@ -245,12 +247,27 @@ print(("-" * 20) + "> meta1")
 meta1_0       = {"table": "holba_runs_meta",
                  "values": {"holba_runs_id":input3_expect[1]["id"], "kind":"test9", "name":"property9", "value":"value 0\n"}}
 meta1_1       = copy.deepcopy(meta1_0)
-meta1_1["values"]["value"]="value 1\n"
+meta1_1["values"]["value"] = "value 1\n"
 run_db_interface_py("create", meta1_0)
 run_db_interface_py("append", meta1_1)
 meta1_ret = run_db_interface_py("append", meta1_1)
 meta1_expect = (True, {"holba_runs_id": 3, "kind": "test9", "name": "property9", "value": "value 0\nvalue 1\nvalue 1\n"})
 assert(meta1_ret == meta1_expect)
+
+# simple match query
+query1        = {"type": "match_simple",
+                 "query": {"table": "holba_runs_meta",
+                           "values": {}}}
+query1_ret    = run_db_interface_py("query", query1)
+query1_expect = (True, [["holba_runs_id", "kind", "name", "value"], [[1, "test1", "property1", "some initial value\nsome new value\nsome initial value\n"], [3, "test9", "property9", "value 0\nvalue 1\nvalue 1\n"]]])
+assert(query1_ret == query1_expect)
+
+query2        = {"type": "match_simple",
+                 "query": {"table": "holba_runs",
+                           "values": {"time": "time 1"}}}
+query2_ret    = run_db_interface_py("query", query2)
+query2_expect = (True, [['id', 'time', 'exp_progs_lists_id', 'exp_exps_lists_id'], [[1, 'time 1', 1, 1]]])
+assert(query2_ret == query2_expect)
 
 
 # print state of database

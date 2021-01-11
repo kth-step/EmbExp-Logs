@@ -57,28 +57,80 @@ def op_importdb(db, json_args):
 
 """ op:create """
 def op_create(db, json_args):
+	# input check
+	if not type(json_args) is dict:
+		raise Exception("wrong input, must be a dictionary")
+	if any(map(lambda x: not x in ["table", "values"], json_args.keys())):
+		raise Exception("unknown parameter in input")
+	# fetching and processing of arguments
 	# TODO: add parameter here and in logsdb to (in one transaction) match existing entries and create new entry only if matching does not exist yet
 	table = json_args["table"]
+	values = json_args["values"]
+	if not type(values) is dict:
+		raise Exception("wrong input, 'values' must be a dictionary")
 	tr = ldb.get_empty_TableRecord(table)
-	data = tr._replace(**json_args["values"])
+	data = tr._replace(**values)
 	# create an entry, basic definition: only essential data
 	return db.add_tablerecord(data)._asdict()
 
 
 """ op:append """
 def op_append(db, json_args):
+	# input check
+	if not type(json_args) is dict:
+		raise Exception("wrong input, must be a dictionary")
+	if any(map(lambda x: not x in ["table", "values"], json_args.keys())):
+		raise Exception("unknown parameter in input")
+	# fetching and processing of arguments
 	table = json_args["table"]
+	values = json_args["values"]
+	if not type(values) is dict:
+		raise Exception("wrong input, 'values' must be a dictionary")
 	tr = ldb.get_empty_TableRecord(table)
-	data = tr._replace(**json_args["values"])
+	data = tr._replace(**values)
 	# append string data to an existing entry
 	return db.append_tablerecord_meta(data)._asdict()
 
 
 """ op:query """
 def op_query(db, json_args):
-	raise Exception("not implemented")
-	# query in some way, try to be more structured and restricted here, not bare SQL strings
-	return False
+	# input check
+	if not type(json_args) is dict:
+		raise Exception("wrong input, must be a dictionary")
+	if any(map(lambda x: not x in ["type", "query"], json_args.keys())):
+		raise Exception("unknown parameter in input")
+	# fetching and processing of arguments
+	q_type = json_args["type"]
+	q = json_args["query"]
+
+	## query in some way, try to be more structured and restricted here, not bare SQL strings
+
+	# a) simple match
+	if   q_type == "match_simple":
+		# input check
+		if not type(q) is dict:
+			raise Exception("wrong input, must be a dictionary")
+		if any(map(lambda x: not x in ["table", "values"], q.keys())):
+			raise Exception("unknown parameter in input ('query')")
+		# fetching and processing of arguments
+		table = q["table"]
+		values = q["values"]
+		if not type(values) is dict:
+			raise Exception("wrong input, 'values' of 'query' must be a dictionary")
+		tr = ldb.get_empty_TableRecord(table)
+		data = tr._replace(**values)
+		# search for matches and return the results as a pair of field name list and individual lists with the same length
+		fields = list(tr._fields)
+		matches = db.get_tablerecord_matches(data)
+		rows = list(map(lambda m: list(map(lambda x: getattr(m, x), fields)), matches))
+		res = (fields, rows)
+		return res
+	# b) join-based query
+	elif q_type == "join_based":
+		raise Exception("not implemented")
+	# c) unknown query type
+	else:
+		raise Exception("unknown query type: " + q_type)
 
 
 opdict = {"backup"  : op_backup,
@@ -94,8 +146,6 @@ opfun = opdict[operation]
 # create db access object
 with ldb.LogsDB() as db:
 	ret_val = opfun(db, json_arguments)
-	#ret_val = json_arguments
-	#ret_val = {"1": "hello 123", "2": [1,2,3,4], "3": {"hello":123, "hello2":1234}}
 
 # return value is serialized with json and printed on stdout
 print(json.dumps(ret_val))
