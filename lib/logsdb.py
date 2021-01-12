@@ -147,11 +147,11 @@ class LogsDB:
 			if not ((os.path.isfile(alt_db_file)) or (not os.path.exists(alt_db_file))):
 				raise Exception("alternative database file must be a path to an existing file or the path not should exist")
 			self.database_file = alt_db_file
-			db_dir = os.path.dirname(db_path)
+			db_dir = os.path.dirname(self.database_file)
 			self.backup_dir = None
 		else:
 			self.database_file = _get_repo_rel_path(db_path)
-			db_dir = os.path.dirname(db_path)
+			db_dir = os.path.dirname(self.database_file)
 			self.backup_dir = os.path.join(db_dir, "backups")
 
 		if not os.path.isdir(db_dir):
