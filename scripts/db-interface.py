@@ -60,11 +60,16 @@ def op_create(db, json_args):
 	# input check
 	if not type(json_args) is dict:
 		raise Exception("wrong input, must be a dictionary")
-	if any(map(lambda x: not x in ["table", "values", "match_existing"], json_args.keys())):
+	if any(map(lambda x: not x in ["table", "values", "id_only", "match_existing"], json_args.keys())):
 		raise Exception("unknown parameter in input")
-	# fetching and processing of arguments
+	# fetching of arguments
 	table = json_args["table"]
 	values = json_args["values"]
+	id_only = False
+	try:
+		id_only = json_args["id_only"]
+	except KeyError:
+		pass
 	match_existing = False
 	try:
 		match_existing = json_args["match_existing"]
@@ -74,10 +79,11 @@ def op_create(db, json_args):
 		raise Exception("wrong input, 'match_existing' must be a bool")
 	if not type(values) is dict:
 		raise Exception("wrong input, 'values' must be a dictionary")
+	# processing of arguments
 	tr = ldb.get_empty_TableRecord(table)
 	data = tr._replace(**values)
 	# create an entry, basic definition: only essential data
-	return db.add_tablerecord(data, match_existing=match_existing)._asdict()
+	return db.add_tablerecord(data, id_only=id_only, match_existing=match_existing)._asdict()
 
 
 """ op:append """
@@ -87,15 +93,17 @@ def op_append(db, json_args):
 		raise Exception("wrong input, must be a dictionary")
 	if any(map(lambda x: not x in ["table", "values"], json_args.keys())):
 		raise Exception("unknown parameter in input")
-	# fetching and processing of arguments
+	# fetching of arguments
 	table = json_args["table"]
 	values = json_args["values"]
 	if not type(values) is dict:
 		raise Exception("wrong input, 'values' must be a dictionary")
+	# processing of arguments
 	tr = ldb.get_empty_TableRecord(table)
 	data = tr._replace(**values)
 	# append string data to an existing entry
-	return db.append_tablerecord_meta(data)._asdict()
+	db.append_tablerecord_meta(data)
+	return True
 
 
 """ op:query """
@@ -116,18 +124,27 @@ def op_query(db, json_args):
 		# input check
 		if not type(q) is dict:
 			raise Exception("wrong input, must be a dictionary")
-		if any(map(lambda x: not x in ["table", "values"], q.keys())):
+		if any(map(lambda x: not x in ["table", "values", "id_only"], q.keys())):
 			raise Exception("unknown parameter in input ('query')")
-		# fetching and processing of arguments
+		# fetching arguments
 		table = q["table"]
 		values = q["values"]
+		id_only = False
+		try:
+			id_only = q["id_only"]
+		except KeyError:
+			pass
 		if not type(values) is dict:
 			raise Exception("wrong input, 'values' of 'query' must be a dictionary")
+		# processing of arguments
 		tr = ldb.get_empty_TableRecord(table)
 		data = tr._replace(**values)
 		# search for matches and return the results as a pair of field name list and individual lists with the same length
-		fields = list(tr._fields)
-		matches = db.get_tablerecord_matches(data)
+		if not id_only:
+			fields = list(tr._fields)
+		else:
+			fields = list(ldb.TR_id_only._fields)
+		matches = db.get_tablerecord_matches(data, id_only=id_only)
 		rows = list(map(lambda m: list(map(lambda x: getattr(m, x), fields)), matches))
 		res = {"fields": fields, "rows": rows}
 		return res

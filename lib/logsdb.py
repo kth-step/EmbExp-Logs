@@ -251,7 +251,7 @@ class LogsDB:
 		return (data_type, table)
 
 	# append new datasets, should not break database integrity constraints (we have an extra function to append to existing metadata)
-	def add_tablerecord(self, data, match_existing = False):
+	def add_tablerecord(self, data, id_only = False, match_existing = False):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
 
 		# match_existing: match existing entries: matches existing, or creates new entry only if matching does not exist yet
@@ -267,7 +267,7 @@ class LogsDB:
 		sql_values = list(map(lambda n: getattr(data, n), fields))
 
 		# prepare sql query for matching
-		sql_m_str = LogsDB._prep_sql_match(table, fields)
+		sql_m_str = LogsDB._prep_sql_match(table, fields, id_only)
 
 		# prepare sql query for insertion
 		sql_fields_str = f"({', '.join(fields)})"
@@ -275,6 +275,11 @@ class LogsDB:
 		sql_values     = list(map(lambda n: getattr(data, n), fields))
 		sql_str = f"INSERT INTO {table} {sql_fields_str} VALUES {sql_values_str}"
 		logging.info(sql_str)
+
+		if not id_only:
+			sql_fields = "*"
+		else:
+			sql_fields = "id"
 
 		try:
 			rowid = None
@@ -286,7 +291,10 @@ class LogsDB:
 						cur.execute(sql_m_str)
 					else:
 						cur.execute(sql_m_str, sql_values)
-					cur.row_factory = row_factory_simple(data_type._make)
+					if not id_only:
+						cur.row_factory = row_factory_simple(data_type._make)
+					else:
+						cur.row_factory = row_factory_simple(TR_id_only._make)
 					r = list(cur.fetchall())
 					assert(len(r) == 0 or len(r) == 1)
 					if len(r) == 1:
@@ -298,8 +306,11 @@ class LogsDB:
 					cur.execute(sql_str, sql_values)
 				rowid = cur.lastrowid
 
-				cur.execute(f"SELECT * FROM {table} WHERE rowid = {rowid}")
-				cur.row_factory = row_factory_simple(data_type._make)
+				cur.execute(f"SELECT {sql_fields} FROM {table} WHERE rowid = {rowid}")
+				if not id_only:
+					cur.row_factory = row_factory_simple(data_type._make)
+				else:
+					cur.row_factory = row_factory_simple(TR_id_only._make)
 				return cur.fetchone()
 		except:
 			raise Exception("adding data failed")
@@ -368,24 +379,30 @@ class LogsDB:
 		except:
 			raise Exception("appending metadata failed")
 
-	def _prep_sql_match(table, fields):
+	def _prep_sql_match(table, fields, id_only = False):
+		# for id_only
+		if not id_only:
+			sql_fields = "*"
+		else:
+			sql_fields = "id"
+
 		sql_cond_strs = []
 		for f in fields:
 			sql_cond_strs.append(f"{f} = ?")
 
-		sql_str_base = f"SELECT * FROM {table}"
+		sql_str_base = f"SELECT {sql_fields} FROM {table}"
 		sql_str = sql_str_base + ("" if len(fields) == 0 else f" WHERE {' AND '.join(sql_cond_strs)}")
 		logging.info(sql_str)
 		return sql_str
 
 	# for very simple matching queries
-	def get_tablerecord_matches(self, data, count_only = False):
+	def get_tablerecord_matches(self, data, count_only = False, id_only = False):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
 
 		fields = list(filter(lambda n: getattr(data, n) != None, data._fields))
 		sql_values = list(map(lambda n: getattr(data, n), fields))
 
-		sql_str = LogsDB._prep_sql_match(table, fields)
+		sql_str = LogsDB._prep_sql_match(table, fields, id_only)
 
 		try:
 			with self.con:
@@ -400,7 +417,10 @@ class LogsDB:
 						n += 1
 					return n
 				else:
-					cur.row_factory = row_factory_simple(data_type._make)
+					if not id_only:
+						cur.row_factory = row_factory_simple(data_type._make)
+					else:
+						cur.row_factory = row_factory_simple(TR_id_only._make)
 					return list(cur.fetchall())
 		except:
 			raise Exception("retrieving data failed")

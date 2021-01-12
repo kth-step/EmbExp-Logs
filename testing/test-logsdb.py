@@ -221,6 +221,7 @@ def run_db_interface_py(c,i,str_in_output=None):
 
 ret_failure = (False, None)
 
+
 # create a few entries
 print(("-" * 20) + "> input1")
 input1        = {"table": "exp_progs_lists",
@@ -244,22 +245,34 @@ assert(input2_ret == input2_expect)
 
 print(("-" * 20) + "> input3")
 input3        = {"table": "holba_runs",
-                 "values": {"time": "special holbarun_3 time", "exp_progs_lists_id": input1_expect[1]["id"], "exp_exps_lists_id": input2_expect[1]["id"]}}
+                 "values": {"time": "special holbarun_3 time", "exp_progs_lists_id": input1_expect[1]["id"], "exp_exps_lists_id": input2_expect[1]["id"]},
+                 "id_only": True}
 input3_ret    = run_db_interface_py("create", input3)
-input3_expect = (True, {"id": 3, "time": "special holbarun_3 time", "exp_progs_lists_id": 3, "exp_exps_lists_id": 3})
+input3_expect = (True, {"id": 3})
 assert(input3_ret == input3_expect)
+
 
 # create and append metadata
 print(("-" * 20) + "> meta1")
-meta1_0       = {"table": "holba_runs_meta",
-                 "values": {"holba_runs_id":input3_expect[1]["id"], "kind":"test9", "name":"property9", "value":"value 0\n"}}
-meta1_1       = copy.deepcopy(meta1_0)
+meta1         = {"table": "holba_runs_meta",
+                 "values": {"holba_runs_id":input3_expect[1]["id"], "kind":"test9", "name":"property9"}}
+meta1_0       = copy.deepcopy(meta1)
+meta1_0["values"]["value"] = "value 0\n"
+meta1_1       = copy.deepcopy(meta1)
 meta1_1["values"]["value"] = "value 1\n"
 run_db_interface_py("create", meta1_0)
 run_db_interface_py("append", meta1_1)
 meta1_ret = run_db_interface_py("append", meta1_1)
-meta1_expect = (True, {"holba_runs_id": 3, "kind": "test9", "name": "property9", "value": "value 0\nvalue 1\nvalue 1\n"})
+meta1_expect = (True, True)
 assert(meta1_ret == meta1_expect)
+
+print(("-" * 20) + "> meta1 match")
+meta1_m       = {"type": "match_simple",
+                 "query": meta1}
+meta1_m_ret = run_db_interface_py("query", meta1_m)
+meta1_m_expect = (True, {"fields": ["holba_runs_id", "kind", "name", "value"], "rows": [[3, "test9", "property9", "value 0\nvalue 1\nvalue 1\n"]]})
+assert(meta1_m_ret == meta1_m_expect)
+
 
 # simple match query
 print(("-" * 20) + "> query1")
@@ -278,12 +291,24 @@ query2_ret    = run_db_interface_py("query", query2)
 query2_expect = (True, {"fields": ['id', 'time', 'exp_progs_lists_id', 'exp_exps_lists_id'], "rows": [[1, 'time 1', 1, 1]]})
 assert(query2_ret == query2_expect)
 
+print(("-" * 20) + "> query3")
+query3        = {"type": "match_simple",
+                 "query": {"table": "holba_runs",
+                           "values": {}}}
+query3["query"]["id_only"] = True
+query3_ret    = run_db_interface_py("query", query3)
+query3_expect = (True, {"fields": ["id"], "rows": [[1], [2], [3]]})
+print(query3_ret)
+assert(query3_ret == query3_expect)
+
+
 # try to create another "exp_progs_lists" with "match_existing"
 print(("-" * 20) + "> input100")
 input100      = copy.deepcopy(input1)
 input100["match_existing"] = True
 input100_ret  = run_db_interface_py("create", input100)
 assert(input100_ret == input1_expect)
+
 
 # the same should fail if we alter the description, but due to name uniqueness again
 print(("-" * 20) + "> input101")
