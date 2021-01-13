@@ -34,7 +34,7 @@ QE_Ref = (
 # data types for representation of records in tables of database
 TR_holba_runs = (
   collections.namedtuple("TR_holba_runs",
-  ["id", "time", "exp_progs_lists_id", "exp_exps_lists_id"]))
+  ["id", "name", "exp_progs_lists_id", "exp_exps_lists_id"]))
 TR_holba_runs_meta = (
   collections.namedtuple("TR_holba_runs_meta",
   ["holba_runs_id", "kind", "name", "value"]))

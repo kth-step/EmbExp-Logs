@@ -60,7 +60,7 @@ def initial_db_tests(db):
 		exps_list  = db.add_tablerecord(ldb.get_empty_TableRecord("exp_exps_lists")._replace(name =  f"holbarun_{i}"))
 		holbarun   = db.add_tablerecord(ldb.TR_holba_runs(
 			id=None,
-			time=f"time {i}",
+			name=f"time {i}",
 			exp_progs_lists_id = progs_list.id,
 			exp_exps_lists_id = exps_list.id))
 		return holbarun
@@ -69,7 +69,7 @@ def initial_db_tests(db):
 	# try to break foreign key constraint
 	ensure_failing(db.add_tablerecord, ldb.TR_holba_runs(
 			id=None,
-			time="some new string",
+			name="some new string",
 			exp_progs_lists_id = holbarun_1.exp_progs_lists_id+10000,
 			exp_exps_lists_id = holbarun_1.exp_exps_lists_id+20000))
 
@@ -245,7 +245,7 @@ assert(input2_ret == input2_expect)
 
 print(("-" * 20) + "> input3")
 input3        = {"table": "holba_runs",
-                 "values": {"time": "special holbarun_3 time", "exp_progs_lists_id": input1_expect[1]["id"], "exp_exps_lists_id": input2_expect[1]["id"]},
+                 "values": {"name": "special holbarun_3 time", "exp_progs_lists_id": input1_expect[1]["id"], "exp_exps_lists_id": input2_expect[1]["id"]},
                  "id_only": True}
 input3_ret    = run_db_interface_py("create", input3)
 input3_expect = (True, {"id": 3})
@@ -286,9 +286,9 @@ assert(query1_ret == query1_expect)
 print(("-" * 20) + "> query2")
 query2        = {"type": "match_simple",
                  "query": {"table": "holba_runs",
-                           "values": {"time": "time 1"}}}
+                           "values": {"name": "time 1"}}}
 query2_ret    = run_db_interface_py("query", query2)
-query2_expect = (True, {"fields": ['id', 'time', 'exp_progs_lists_id', 'exp_exps_lists_id'], "rows": [[1, 'time 1', 1, 1]]})
+query2_expect = (True, {"fields": ['id', 'name', 'exp_progs_lists_id', 'exp_exps_lists_id'], "rows": [[1, 'time 1', 1, 1]]})
 assert(query2_ret == query2_expect)
 
 print(("-" * 20) + "> query3")

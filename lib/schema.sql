@@ -6,13 +6,13 @@ BEGIN TRANSACTION;
 -- - use metadata convention in programs and experiments to represent the link
 
 -- ===================================================
--- holba runs: unique times - should be a more precise time string to avoid clashes
+-- holba runs: unique names - should include a more precise time string to avoid clashes
 CREATE TABLE holba_runs (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  time TEXT NOT NULL,
+  name TEXT NOT NULL,
   exp_progs_lists_id INTEGER,
   exp_exps_lists_id INTEGER,
-  CONSTRAINT UC_holba_runs UNIQUE (time),
+  CONSTRAINT UC_holba_runs UNIQUE (name),
   CONSTRAINT FK_exp_progs_lists FOREIGN KEY (exp_progs_lists_id) REFERENCES exp_progs_lists(id),
   CONSTRAINT FK_exp_exps_lists  FOREIGN KEY (exp_exps_lists_id)  REFERENCES exp_exps_lists(id),
   CONSTRAINT UC_exp_progs_lists UNIQUE (exp_progs_lists_id),
