@@ -7,23 +7,25 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../lib"))
 import argparse
 import logging
 
+import logsdb as ldb
+import experiment
+import logslist
+import exp_finder
 import progplatform
 import exp_runner
-import exp_finder
 
 # parse arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("-ec", "--exp_class", help="class of experiment: arm8/exps2/exp_cache_multiw, takes from stdin if this is not provided")
-parser.add_argument("-bt", "--board_type", help="broad_type", choices=['rpi3', 'rpi4'])
+parser.add_argument("listname",   help="listname")
+parser.add_argument("-bt", "--board_type", help="broad_type", choices=["rpi3", "rpi4"], default="rpi3")
 
-parser.add_argument("-am", "--auto_mode", help="automatic mode: all, fix (default). run for all present experiments or just fix the unfinished ones that run with the current master branch of ProgPlatform (no result file)")
+parser.add_argument("-fa", "--fix_all",    help="only fix experiments that don't have a complete run yet, repeatedly with polling", action="store_true")
 
-parser.add_argument("-ep", "--embexp_path",   help="see run_experiment.py.")
+parser.add_argument("-ep", "--embexp_path", help="see run_experiment.py.")
 
-parser.add_argument("-cm", "--conn_mode",     help="see run_experiment.py.")
-parser.add_argument("-fr", "--force_results", help="see run_experiment.py.", action="store_true")
+parser.add_argument("-cm", "--conn_mode",   help="see run_experiment.py.")
 
-parser.add_argument("-v", "--verbose",        help="increase output verbosity", action="store_true")
+parser.add_argument("-v",  "--verbose",     help="increase output verbosity", action="store_true")
 args = parser.parse_args()
 
 # set log level
@@ -32,57 +34,77 @@ if args.verbose:
 else:
 	logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
-exp_class = args.exp_class
-do_auto = exp_class != None
-if do_auto:
-	assert len(exp_class.split('/')) == 3
+listname   = args.listname
+board_type = args.board_type
+fix_all   = args.fix_all
 
 # create prog platform object
 progplat = progplatform.get_embexp_ProgPlatform(args.embexp_path)
 
-board_type = args.board_type
-auto_mode = "fix" if args.auto_mode == None else args.auto_mode
+# db connection
+print("opening db...")
+print()
+db = ldb.LogsDB()
+db.connect()
 
-# select experiments (could be made as iterator to simplify the code and not require processing to complete in the beginning, i guess)
-# ======================================
-logging.info(f"selecting experiments")
+# define experiment finding
+progplat_hash = progplat.get_branch_commit_hash(progplatform.get_default_branch(board_type))
+run_spec = experiment._mk_run_spec(progplat_hash, board_type)
 
-if not do_auto:
-	exp_iter = exp_finder.get_exps_from_stdin()
+def is_latest_exp_run_not_complete(exp):
+	run_id = exp.get_latest_run_id(run_spec)
+	if run_id == None:
+		return True # no run
+	run_data = exp.get_run_data(run_id)
+	return not experiment.Experiment.is_complete_run(run_data)
+
+def genfun():
+	exps = logslist.LogsList._get_by_name(db, "exp", listname).get_entries()
+	ffun = is_latest_exp_run_not_complete
+	# if not fix_all, we want to run once for each experiment
+	if not fix_all:
+		ffun = lambda x: True
+	return list(filter(ffun, exps))
+
+genargs = {}
+
+# select iterator
+if fix_all:
+	exp_iter = exp_finder.PollingIterator(genfun, genargs)
 else:
-	assert board_type == "rpi3" or board_type == "rpi4"
-
-	progplat_hash = progplat.get_branch_commit_hash(progplatform.get_default_branch(board_type))
-
-	if auto_mode == "fix":
-		exp_iter = exp_finder.ExpsIter(exp_class, auto_mode, progplat_hash, board_type)
-	else:
-		exp_iter = exp_finder.get_exps(exp_class, auto_mode, progplat_hash, board_type)
+	exp_iter = exp_finder.NonPollingListIterator(genfun(**genargs))
 
 # launch the runner script for each experiment in the list
 # ======================================
 logging.info(f"running all selected experiments")
 successful = True
 someSuccessful = False
-for exp_id in exp_iter:
-	(iter_round, iter_idx, iter_size) = exp_iter.get_iterinfo()
-	print(f"===>>> [r:{iter_round}, {(iter_idx/iter_size * 100):.2f}% of {iter_size}] {exp_id}")
-	try:
-		result_val = exp_runner.run_experiment(exp_id, progplat, board_type, conn_mode=args.conn_mode, force_results=args.force_results)
-		someSuccessful = True
-		if result_val != True:
-			print(f"         - Interesting result: {result_val}")
-	except KeyboardInterrupt:
-		raise
-	except:
-		successful = False
-		logging.warning("- unsuccessful")
+try:
+	for exp in exp_iter:
+		# reload experiment for latest values
+		exp = experiment.Experiment(db, exp.get_exp_id())
+
+		(iter_round, iter_idx, iter_size) = exp_iter.get_iterinfo()
+		print(f"===>>> [r:{iter_round}, {(iter_idx/iter_size * 100):.2f}% of {iter_size}] {exp}")
+		try:
+			result_val = exp_runner.run_experiment(exp, progplat, board_type, conn_mode=args.conn_mode)
+			someSuccessful = True
+			if result_val != True:
+				print(f"         - Interesting result: {result_val}")
+		except KeyboardInterrupt:
+			raise
+		except:
+			successful = False
+			logging.warning("- unsuccessful")
+			raise
+except KeyboardInterrupt:
+	pass
 
 print()
 print("="*40)
 print("="*40)
 if (someSuccessful):
-	print(f"run_id = {progplat.get_configured_run_id()}")
+	print(f"run_spec = {run_spec}")
 print("="*40)
 if successful:
 	print("ALL EXPERIMENTS COMPLETED")

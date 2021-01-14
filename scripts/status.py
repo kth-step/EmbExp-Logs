@@ -7,6 +7,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../lib"))
 import argparse
 import logging
 
+import logsdb as ldb
+import logslist
 import progplatform
 import experiment
 from helpers import *
@@ -16,9 +18,9 @@ from exp_runner import *
 parser = argparse.ArgumentParser()
 parser.add_argument("--arch_id",       help="architecture id, default: arm8")
 parser.add_argument("-bt", "--board_type", help="broad_type", choices=['rpi3', 'rpi4'])
-parser.add_argument("-ri", "--run_id", help="id of run made up of ProgPlatform commit hash and board type, for example: 13700076ab79095f15468f0c489fa587ac225626.rpi3")
+parser.add_argument("-rs", "--run_spec", help="spec of run made up of ProgPlatform commit hash and board type, for example: 13700076ab79095f15468f0c489fa587ac225626.rpi3")
 
-parser.add_argument("-l", "--listfile", help="list file to use as set of experiments")
+parser.add_argument("-ln", "--listname", help="list to use as set of experiments")
 
 parser.add_argument("-pp", "--print_progs",           help="print the list of programs", action="store_true")
 
@@ -45,128 +47,72 @@ if board_type == None:
 	if arch_id == "arm8":
 		board_type = "rpi3"
 
-# obtain run_id
-run_id = args.run_id
-if run_id == None:
+# obtain run_spec
+run_spec = args.run_spec
+if run_spec == None:
 	assert arch_id == "arm8"
 	assert board_type == "rpi3" or board_type == "rpi4"
 	progplat_hash = progplatform.get_embexp_ProgPlatform(None).get_branch_commit_hash(
 		progplatform.get_default_branch(board_type))
-	run_id = experiment.get_run_id(progplat_hash, board_type)
+	run_spec = experiment._mk_run_spec(progplat_hash, board_type)
 
-print(f"run_id = {run_id}")
+print(f"run_spec = {run_spec}")
 print()
 
-listfile = args.listfile
-exp_set = None
-if listfile != None:
-	exp_set = set()
+print("opening db...")
+print()
+db = ldb.LogsDB()
+db.connect()
 
-	with open(listfile, 'r') as f:
-		lines = f.readlines()
-	for line in lines:
-		if line.startswith("#") or line.strip() == "":
-			continue
-		exp_set.add(line.strip())
-
-# all of this should be moved to library file experiment or experiments or similar
-def collect_structure(startpath):
-	struct = {"dirs": {}, "files": []}
-
-	for root, dirs, files in os.walk(startpath):
-		relpath = root.replace(startpath, '').split(os.sep)
-		assert relpath[0] == ""
-		relpath = relpath[1:]
-		# find the right place
-		relstruct = struct
-		for d in relpath:
-			relstruct = relstruct["dirs"][d]
-		# place all dirs and files there
-		relstruct["files"].extend(files)
-		for d in dirs:
-			relstruct["dirs"][d] = {"dirs": {}, "files": []}
-
-	return struct
-
-def rewrite_structure(struct):
-	newstruct = {}
-	for f in struct["files"]:
-		newstruct[f] = None
-	for dn in struct["dirs"]:
-		newstruct[dn] = rewrite_structure(struct["dirs"][dn])
-	return newstruct
-
-def structure_dirs(s):
-	return list(filter(lambda x: x != None, s))
-
-def structure_files(s):
-	return list(filter(lambda x: x == None, s))
-
-# collect directory and file tree
-logging.info("collecting directory and file tree of arm8")
-rootpath = get_logs_path(arch_id)
-arch_structure = rewrite_structure(collect_structure(rootpath))
-progs = structure_dirs(arch_structure["progs"])
-expts = list(filter(lambda x: x != "progs", structure_dirs(arch_structure)))
-exps = []
-for et in expts:
-	et2s = structure_dirs(arch_structure[et])
-	for et2 in et2s:
-		for ei in structure_dirs(arch_structure[et][et2]):
-			exp_id = f"{arch_id}/{et}/{et2}/{ei}"
-			if (exp_set == None) or (exp_id in exp_set):
-				exps.append(exp_id)
+listname = args.listname
+exps = None
+if listname != None:
+	exps = logslist.LogsList._get_by_name(db, "exp", listname).get_entries()
+	print(f"found {len(exps)} entries in list {listname}")
+else:
+	raise Exception("we always need to use a list currently")
 
 # filter out the valid experiments
-exps = map(lambda x: experiment.Experiment(x), exps)
 exps = list(filter(lambda exp: exp.is_valid_experiment(), exps))
 
 # collect all programs and experiments
+print()
 logging.info("collecting all programs and experiments")
-print(f"n_progs = {len(progs)} (this number is only based on the number of progs subdirectories)")
 print(f"n_exps  = {len(exps)}")
 print()
 print()
 
 # collect statistics
-e_notrun = []
-e_incomplete = []
-e_examples = []
-e_cexamples = []
+e_notrun       = []
+e_incomplete   = []
+e_examples     = []
+e_cexamples    = []
 e_inconclusive = []
-e_others = []
+e_others       = []
 for exp in exps:
-	assert exp.get_exp_arch() == arch_id
-	s = arch_structure[exp.get_exp_type()][exp.get_exp_params_id()][exp.get_exp_data_id()]
+	assert exp.get_prog().get_arch() == arch_id
 	exp_id = exp.get_exp_id()
 
 	# did it run?
-	run_dirname = experiment.get_run_dir(run_id)
-	if not run_dirname in s:
+	run_id = exp.get_latest_run_id(run_spec)
+	if run_id == None:
 		e_notrun.append(exp_id)
 		continue
-	r = s[run_dirname]
+
+	run_data = exp.get_run_data(run_id)
 
 	# is it complete?
-	if exp.is_incomplete_experiment(run_id):
-		continue
-
-	# this is unnecessary
-	resultfile = "result.json"
-	if not resultfile in r:
-		e_others.append(exp_id)
-		logging.error("this should not happen, considering experiment {exp_id} as \"other\"")
+	if not experiment.Experiment.is_complete_run(run_data):
+		e_incomplete.append(exp_id)
 		continue
 
 	# what's the result?
-	# TODO: better use json here for parsing the result file
-	with open(get_logs_path(exp_id) + f"/{run_dirname}/{resultfile}", "r") as f:
-		result = f.read()
-	if result == "true":
+	result = run_data["result"]
+	if result == True:
 		e_examples.append(exp_id)
-	elif result == "false":
+	elif result == False:
 		e_cexamples.append(exp_id)
-	elif result.startswith("\"special :::: INCONCLUSIVE: "):
+	elif result.startswith("special :::: INCONCLUSIVE: "):
 		e_inconclusive.append(exp_id)
 	else:
 		e_others.append(exp_id)

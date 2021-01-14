@@ -2,68 +2,57 @@
 import logging
 import os
 import json
+import datetime
 
-from helpers import *
+import logsdb as ldb
+import program
 
-def get_run_id(progplat_hash, board_type):
+import helpers
+
+_run_id_meta_prefix = "run."
+def _mk_run_spec(progplat_hash, board_type):
 	return f"{progplat_hash}.{board_type}"
-def get_run_dir(run_id):
-	return f"run.{run_id}"
+def _dest_run_id(run_id):
+	parts = run_id.split(".")
+	assert(len(parts) == 3)
+	return (".".join(parts[0:2]), parts[2])
+def _gen_dotfree_time_str():
+	now = datetime.datetime.now()
+	return now.strftime("%Y-%m-%d_%H-%M-%S_%f")[:-3]
 
 class Experiment:
-	def __init__(self, exp_id):
-		assert len(exp_id.split('/')) == 4
-		self.exp_id = exp_id
-		self.exp_path = get_logs_path(exp_id)
-		assert os.path.isdir(self.exp_path)
+	def __init__(self, db, exp):
+		self.db = db
 
-	def create(exp_id, files):
-		exp_path = get_logs_path(exp_id)
-		# create experiment directory, exception if it already exists
-		exp_dir_path = os.path.dirname(exp_path)
-		if not os.path.isdir(exp_dir_path):
-			os.makedirs(exp_dir_path)
-		os.mkdir(exp_path)
-		# write all data, one after the other
-		for (filename, bindata) in files:
-			filepath = os.path.join(exp_path, filename)
-			writefile_or_compare(False, filepath, bindata, "this should never happen")
-		return Experiment(exp_id)
+		if type(exp) == int:
+			exps = db.get_tablerecord_matches(ldb.get_empty_TableRecord("exp_exps")._replace(id=exp))
+			assert(len(exps) == 1)
+			self.exp = exps[0]
+		else:
+			self.exp = exp
 
-	def get_path(self, path, needfile = False):
-		jpath = os.path.join(self.exp_path, path)
-		if needfile and not os.path.isfile(jpath):
-			raise Exception(f"file {jpath} doesn't exist")
-		return jpath
+		self.inputs = None
+		self.prog = None
+		self.metadata = None
 
 	def get_exp_id(self):
-		return self.exp_id
-
-	def get_exp_arch(self):
-		return os.path.basename(os.path.abspath(self.get_path("../../..")))
-
-	def get_exp_type(self):
-		return os.path.basename(os.path.abspath(self.get_path("../..")))
-
-	def get_exp_params_id(self):
-		return os.path.basename(os.path.abspath(self.get_path("..")))
-
-	def get_exp_data_id(self):
-		return os.path.basename(os.path.abspath(self.get_path(".")))
+		return self.exp.id
 
 	def get_prog_id(self):
-		with open(self.get_path(f"code.hash", True), "r") as f:
-			return f.read().strip()
+		return self.exp.exp_progs_id
 
-	def get_prog_path(self, path, needfile = False):
-		prog_id = self.get_prog_id()
-		return self.get_path(f"../../../progs/{prog_id}/{path}", needfile)
+	def get_exp_type(self):
+		return self.exp.type
 
-	def get_code(self):
-		with open(self.get_prog_path("code.asm", True), "r") as f:
-			return f.read()
+	def get_exp_params(self):
+		return self.exp.params
 
-	def get_input_file(self, filename):
+	def get_inputs(self):
+		if self.inputs == None:
+			self.inputs = json.loads(self.exp.input_data)
+		return self.inputs
+
+	def _proc_input_state(inp, statename):
 		def value_parse_rec(d, convkey = False):
 			d_ = {}
 			for k in d:
@@ -76,98 +65,125 @@ class Experiment:
 				d_[k] = v_
 			return d_
 
-		with open(self.get_path(filename, True), "r") as f:
-			json_raw = json.load(f)
-			statemap = value_parse_rec(json_raw)
-			return statemap
+		return value_parse_rec(inp[statename])
 
-	def get_exp_gens(self):
-		prefix = "gen."
-		gens = []
-		for f in os.listdir(self.get_path(".")):
-			if os.path.isfile(self.get_path(f)) and f.startswith(prefix):
-				gens.append(f)
-		return gens
-
-	def get_prog_gens(self):
-		prefix = "gen."
-		gens = []
-		for f in os.listdir(self.get_prog_path(".")):
-			if os.path.isfile(self.get_prog_path(f)) and f.startswith(prefix):
-				gens.append(f)
-		return gens
-
-	def get_run_ids(self):
-		prefix = "run."
-		ids = []
-		for d in os.listdir(self.get_path(".")):
-			if os.path.isdir(self.get_path(d)) and d.startswith(prefix):
-				ids.append(d[len(prefix):])
-		return ids
+	def get_input_state(self, statename):
+		return Experiment._proc_input_state(self.get_inputs(), statename)
 
 	def is_valid_experiment(self):
-		filenames = ["code.hash", "input1.json"] + (["input2.json"] if self.get_exp_type() == "exps2" else [])
-		for filename in filenames:
-			if not os.path.isfile(self.get_path(filename)):
-				return False
-			if filename.endswith(".json"):
-				with open(self.get_path(filename, True), "r") as f:
-					try:
-						if not isinstance(json.load(f), dict):
-							return False
-					except:
-						return False
-		if not os.path.isfile(self.get_prog_path("code.asm")):
-			return False
+		# data consistency check, if needed in the future
 		return True
 
-	def is_incomplete_experiment(self, run_id):
-		is_complete = True
-		# TODO: these filenames are specific to a certain type of experiment
-		for filename in ["output_uart.log", "result.json"]:
-			is_complete = is_complete and os.path.isfile(self.get_path(f"{get_run_dir(run_id)}/{filename}"))
-		return not is_complete
+	# link to program
+	# =========================================
+	def get_prog(self):
+		if self.prog == None:
+			self.prog = program.Program(self.db, self.get_prog_id())
+		return self.prog
 
-	def write_results(self, run_id, outputs, force_results = False):
-		exp_dir_results = self.get_path(get_run_dir(run_id))
-		# create the directory
-		call_cmd(["mkdir", "-p", exp_dir_results], "could not create directory")
+	# experiment run management (run)
+	# =========================================
+	def get_metadata(self):
+		if self.metadata == None:
+			self.metadata = self.db.get_tablerecord_matches(ldb.get_empty_TableRecord("exp_exps_meta")._replace(exp_exps_id=self.get_exp_id()))
+		return self.metadata
+
+	def get_all_run_ids(self):
+		metadata_names = map(lambda x: x.name, self.get_metadata())
+		run_ids_ = set(filter(lambda x: x.startswith(_run_id_meta_prefix), metadata_names))
+		run_ids  = list(set(map(lambda x: x[len(_run_id_meta_prefix):],run_ids_)))
+		return run_ids
+
+	def get_run_specs(self):
+		run_ids   = self.get_all_run_ids()
+		run_specs = list(set(map(lambda x: _dest_run_id(x)[0], run_ids)))
+		return run_specs
+
+	def get_run_ids(self, run_spec):
+		run_ids  = self.get_all_run_ids()
+		run_ids_ = list(filter(lambda x: _dest_run_id(x)[0] == run_spec, run_ids))
+		return run_ids_
+
+	# uses lexicographic order (behind run_spec part decides)
+	def get_latest_run_id(self, run_spec):
+		ids = self.get_run_ids(run_spec)
+		if len(ids) == 0:
+			return None
+		ids.sort()
+		return ids[len(ids)-1]
+
+	# read previous run data
+	# =========================================
+	def get_run_data(self, run_id):
+		run_metadata = filter(lambda x: x.name == (_run_id_meta_prefix + run_id), self.get_metadata())
+		run_data = dict(map(lambda x: (x.kind, json.loads(x.value) if x.kind == "result" else x.value), run_metadata))
+		if len(run_data) == 0:
+			raise Exception("there is no such run")
+		return run_data
+
+	def is_complete_run(run_data):
+		must_have = ["output_uart", "result"]
+		r = all(map(lambda x: x in run_data.keys(), must_have))
+		return r
+
+	# recording a new run
+	# =========================================
+	def write_new_run(self, run_spec, run_data):
+		assert(len(run_spec.split(".")) == 2)
+		assert(Experiment.is_complete_run(run_data))
+
+		run_id = run_spec + "." + _gen_dotfree_time_str()
+		meta_name = _run_id_meta_prefix + run_id
+
+		last_run_id = self.get_latest_run_id(run_spec)
 		nomismatches = True
-		# find whether there are mismatches
-		for (filename, bindata) in outputs:
-			filepath = os.path.join(exp_dir_results, filename)
-			nomismatches = nomismatches and comparefile(filepath, bindata)
-		if not force_results and not nomismatches:
-			return False
-		# write all data, one after the other
-		for (filename, bindata) in outputs:
-			filepath = os.path.join(exp_dir_results, filename)
-			writefile_or_compare(force_results, filepath, bindata, "this should never happen")
+		if last_run_id == None:
+			last_run_exists = False
+		else:
+			last_run_exists = True
+			last_run_data = self.get_run_data(last_run_id)
+			last_is_complete = Experiment.is_complete_run(last_run_data)
+			nomismatches = nomismatches and last_is_complete
+
+		if last_run_exists:
+			for k in run_data.keys():
+				if k in last_run_data.keys():
+					#print(f"{run_data[k]} == {last_run_data[k]}")
+					nomismatches = nomismatches and run_data[k] == last_run_data[k]
+				else:
+					nomismatches = False
+
+		if (not nomismatches) or (not last_run_exists):
+			tr_b = ldb.get_empty_TableRecord("exp_exps_meta")._replace(exp_exps_id=self.get_exp_id(), name=meta_name)
+			for k in run_data.keys():
+				v = json.dumps(run_data[k], separators=(',', ':')) if k == "result" else run_data[k]
+				tr = tr_b._replace(kind=k, value=v)
+				self.db.add_tablerecord(tr)
+
 		return nomismatches
 
+	# simple printing
+	# =========================================
 	def print(self):
-		print("generation info:")
-		print("-"*40)
-		for g in self.get_exp_gens():
-			print(f"- {g}")
-		print()
-
 		print("runs:")
 		print("-"*40)
-		for g in self.get_run_ids():
+		for g in self.get_run_specs():
 			print(f"- {g}")
+			for h in self.get_run_ids(g):
+				is_complete = Experiment.is_complete_run(self.get_run_data(h))
+				print(f"  - {h} (complete run: {is_complete})")
 		print()
 
 		print("configuration:")
 		print("-"*40)
 		assert self.get_exp_type() == "exps2" or self.get_exp_type() == "exps1"
 
-		# read input files
+		# read data
 		prog_id  = self.get_prog_id()
-		code_asm = self.get_code()
-		input1   = self.get_input_file("input1.json")
+		code_asm = self.get_prog().get_code()
+		input1   = self.get_input_state("input_1")
 		if self.get_exp_type() == "exps2":
-			input2   = self.get_input_file("input2.json")
+			input2   = self.get_input_state("input_2")
 
 		# printout
 		print(f"prog_id = {prog_id}")
@@ -176,15 +192,24 @@ class Experiment:
 		print(code_asm)
 		print("="*20)
 		print("="*20)
-		print(gen_readable(input1))
+		print(helpers.gen_readable(input1))
 		print("="*20)
 		if self.get_exp_type() == "exps2":
-			print(gen_readable(input2))
+			print(helpers.gen_readable(input2))
 			print("="*20)
 
-		print("prog generation info:")
-		print("-"*40)
-		for g in self.get_prog_gens():
-			print(f"- {g}")
-		print()
+	# equality and string representation
+	# =========================================
+	def __eq__(self, other):
+		if type(self) == type(other):
+			return (self.exp == other.exp)
+		else:
+			return False
+
+	def __str__(self):
+		return f"<Experiment #{self.get_exp_id()}>"
+
+	def __repr__(self):
+		return str(self)
+
 

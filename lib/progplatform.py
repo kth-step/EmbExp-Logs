@@ -26,6 +26,7 @@ def get_embexp_ProgPlatform(embexp_arg):
 
 def get_default_branch(board_type):
 	assert board_type != None
+	assert board_type == "rpi3" or board_type == "rpi4"
 	return "scamv_" + board_type
 
 class ProgPlatform:
@@ -51,10 +52,10 @@ class ProgPlatform:
 			progplat_hash = self._call_git_cmd_get_output(["rev-parse", f"origin/{branchname}"], "coudln't get commit hash")
 		return progplat_hash.decode("ascii").strip()
 
-	def get_configured_run_id(self):
+	def get_configured_run_spec(self):
 		assert self.board_type != None
 		progplat_hash = self.get_commit_hash()
-		return experiment.get_run_id(progplat_hash, self.board_type)
+		return experiment._mk_run_spec(progplat_hash, self.board_type)
 
 	def _get_git_call(self):
 		return ["git", "--git-dir", f"{self.progplat_path}/.git", "--work-tree", self.progplat_path]
@@ -114,16 +115,16 @@ class ProgPlatform:
 		self.board_type = board_type
 
 		logging.debug(f"reading input files")
-		code_asm = exp.get_code()
-		train    = exp.get_input_file("train.json")
-		input1   = exp.get_input_file("input1.json")
+		code_asm = exp.get_prog().get_code()
+		train    = exp.get_input_state("input_train")
+		input1   = exp.get_input_state("input_1")
 		if exp_type == "exps2":
-			input2   = exp.get_input_file("input2.json")
+			input2   = exp.get_input_state("input_2")
 
 		config_text = ""
-		config_text += f"PROGPLAT_ARCH         ={exp.get_exp_arch()}\n"
+		config_text += f"PROGPLAT_ARCH         ={exp.get_prog().get_arch()}\n"
 		config_text += f"PROGPLAT_TYPE         ={exp.get_exp_type()}\n"
-		config_text += f"PROGPLAT_PARAMS       ={exp.get_exp_params_id()}\n"
+		config_text += f"PROGPLAT_PARAMS       ={exp.get_exp_params()}\n"
 		config_text += f"PROGPLAT_BOARD        ={board_type}\n"
 		if exp_type == "exps2":
 			config_text += f"PROGPLAT_RUN_TIMEOUT  =60\n"
@@ -153,7 +154,7 @@ class ProgPlatform:
 			raise Exception(f"invalid conn_mode: {conn_mode}")
 		self._call_make_cmd([maketarget], error_msg)
 		# read and return the uart output (binary)
-		with open(os.path.join(self.progplat_path, "temp/uart.log"), "rb") as f:
+		with open(os.path.join(self.progplat_path, "temp/uart.log"), "r") as f:
 				uartlogdata = f.read()
 		return uartlogdata
 

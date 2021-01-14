@@ -6,20 +6,20 @@ import experiment
 import progplatform
 from helpers import *
 
-def run_experiment(exp_id, progplat = None, board_type = None, branchname = None, conn_mode = None, force_cleanup = None, force_results = False, no_cleanup = False, printeval = False, ignoremismatch = False, write_results = True):
-	logging.info(f"{(exp_id, progplat, board_type, branchname, conn_mode, force_cleanup, force_results, no_cleanup, printeval, ignoremismatch, write_results)}")
+def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, force_cleanup = None, no_cleanup = False, printeval = False, ignoremismatch = False, write_results = True):
+	logging.info(f"{(exp, progplat, board_type, branchname, conn_mode, force_cleanup, no_cleanup, printeval, ignoremismatch, write_results)}")
 	if progplat == None:
 		progplat = progplatform.get_embexp_ProgPlatform(None)
 
-	exp = experiment.Experiment(exp_id)
+	exp_arch = exp.get_prog().get_arch()
 
 	# defaults
 	if board_type == None:
-		if exp.get_exp_arch() == "arm8":
+		if exp_arch == "arm8":
 			board_type = "rpi3"
 
 	# can only handle arm8 at the moment, ...
-	assert exp.get_exp_arch() == "arm8"
+	assert exp_arch == "arm8"
 	# ... and run on rpi3 or rpi4
 	assert board_type == "rpi3" or board_type == "rpi4"
 
@@ -43,14 +43,14 @@ def run_experiment(exp_id, progplat = None, board_type = None, branchname = None
 		# ======================================
 		logging.info(f"generating experiment code")
 		progplat.configure_experiment(board_type, exp)
-		run_id = progplat.get_configured_run_id()
+		run_spec = progplat.get_configured_run_spec()
 
 		# run the experiment
 		# ======================================
 		logging.info(f"running experiment")
-		uartlogdata_bin = progplat.run_experiment(conn_mode)
+		uartlogdata = progplat.run_experiment(conn_mode)
 		# interpret the experiment result
-		uartlogdata_lines = list(map(lambda l: l.decode(), uartlogdata_bin.split(b'\n')))
+		uartlogdata_lines = uartlogdata.split("\n")
 		if exp_type == "exps2":
 			result_val = eval_uart_pair_cache_experiment(uartlogdata_lines)
 		elif exp_type == "exps1":
@@ -70,18 +70,15 @@ def run_experiment(exp_id, progplat = None, board_type = None, branchname = None
 				result_val = sets_clean
 		else:
 			raise Exception(f"unknown experiment type: {exp_type}")
-		result = json.dumps(result_val)
 
 		# save the outputs and test metadata
 		# ======================================
 		nomismatches = True
 		if write_results:
 			logging.info(f"saving experiment data")
-			# TODO: with reset the output format could be: output1/2_uart.log and result_rst.json
-			outputs = []
-			outputs.append(("output_uart.log", uartlogdata_bin))
-			outputs.append(("result.json",     result.encode('utf-8')))
-			nomismatches = exp.write_results(run_id, outputs, force_results)
+			run_data = {"output_uart": uartlogdata,
+                                    "result":      result_val}
+			nomismatches = exp.write_new_run(run_spec, run_data)
 
 	finally:
 		if not no_cleanup:
@@ -110,7 +107,7 @@ def run_experiment(exp_id, progplat = None, board_type = None, branchname = None
 		else:
 			raise Exception(f"unknown experiment type: {exp_type}")
 
-	if not nomismatches and not force_results and not ignoremismatch:
+	if not nomismatches and not ignoremismatch:
 		raise Exception("the output files differ")
 
 	return result_val
