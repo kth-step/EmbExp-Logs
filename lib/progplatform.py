@@ -107,9 +107,10 @@ class ProgPlatform:
 		with open(os.path.join(self.progplat_path, f"all/inc/experiment/{filename}"), "w+") as f:
 			f.write(contents)
 
-	def configure_experiment(self, board_type, exp, num_mul_runs = 10):
+	def configure_experiment(self, board_type, exp, num_mul_runs = 10, run_input_state = None):
 		assert self._writable
 		exp_type = exp.get_exp_type()
+		exp_type = exp_type if run_input_state == None else "exps1"
 		assert exp_type == "exps2" or exp_type == "exps1"
 
 		self.board_type = board_type
@@ -117,7 +118,7 @@ class ProgPlatform:
 		logging.debug(f"reading input files")
 		code_asm = exp.get_prog().get_code()
 		train    = exp.get_input_state("input_train")
-		input1   = exp.get_input_state("input_1")
+		input1   = exp.get_input_state("input_1" if run_input_state == None else run_input_state)
 		if exp_type == "exps2":
 			input2   = exp.get_input_state("input_2")
 

@@ -22,8 +22,7 @@ parser.add_argument("-bt", "--board_type", help="broad_type", choices=["rpi3", "
 parser.add_argument("-fa", "--fix_all",    help="only fix experiments that don't have a complete run yet, repeatedly with polling", action="store_true")
 
 parser.add_argument("-ep", "--embexp_path", help="see run_experiment.py.")
-
-parser.add_argument("-cm", "--conn_mode",   help="see run_experiment.py.")
+parser.add_argument("-cm", "--conn_mode",   help="see run_experiment.py.", choices=["try", "run", "reset"])
 
 parser.add_argument("-v",  "--verbose",     help="increase output verbosity", action="store_true")
 args = parser.parse_args()
@@ -96,7 +95,6 @@ try:
 		except:
 			successful = False
 			logging.warning("- unsuccessful")
-			raise
 except KeyboardInterrupt:
 	pass
 

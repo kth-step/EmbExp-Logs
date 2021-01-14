@@ -88,7 +88,7 @@ def initial_db_tests(db):
 
 	# add a few experiments, two per program
 	def add_exp(i, prog, holbarun):
-		exp = db.add_tablerecord(ldb.TR_exp_exps(id=None, exp_progs_id=prog.id, type="exps2", params="amazing_model", input_data=f"crazy inputs {i}"))
+		exp = db.add_tablerecord(ldb.TR_exp_exps(id=None, exp_progs_id=prog.id, type="exps2", params="amazing_model", input_data=f'{{"input_1":{{}},"input_2":{{}},"input_train":{{}},"extra":"crazy inputs {i}"}}'))
 		db.add_tablerecord(ldb.TR_exp_exps_lists_entries(exp_exps_lists_id=holbarun.exp_exps_lists_id, exp_exps_id=exp.id))
 		return exp
 
@@ -176,10 +176,20 @@ def initial_db_tests(db):
 	meta3_1 = db.add_tablerecord(meta3)
 	assert(meta3 == meta3_1)
 
+	# add a fake experiment run to play with
+	meta_exp_run_name = "run.a4bc8ffc998095be7293fdea7a90f07faa257b40.rpi3.2021-01-14_20-38-05_069"
+	meta_exp_run_out = ldb.TR_exp_exps_meta(exp_exps_id=exp_122.id, kind="output_uart", name=meta_exp_run_name, value="Init complete.\nRESULT: EQUAL\nExperiment complete.\n")
+	meta_exp_run_res = ldb.TR_exp_exps_meta(exp_exps_id=exp_122.id, kind="result", name=meta_exp_run_name, value="true")
+	db.add_tablerecord(meta_exp_run_out)
+	db.add_tablerecord(meta_exp_run_res)
+
 	# print state of database
 	print("=" * 40)
 	print(db.to_string(True))
 
+
+# start with testing procedure
+# ======================================================================================================================
 
 # clear testing database
 db_file = "data/testing.db"
@@ -191,6 +201,7 @@ with ldb.LogsDB(db_file) as db:
 	initial_db_tests(db)
 
 # helper to check calls to db-interface.py
+# ======================================================================================================================
 def run_db_interface_py(c,i,str_in_output=None):
 	from subprocess import Popen, PIPE, STDOUT
 	import json
@@ -223,6 +234,7 @@ ret_failure = (False, None)
 
 
 # create a few entries
+# ======================================================================================================================
 print(("-" * 20) + "> input1")
 input1        = {"table": "exp_progs_lists",
                  "values": {"name": "holbarun_3"}}
@@ -323,6 +335,81 @@ with ldb.LogsDB(db_file) as db:
 	print("=" * 40)
 	print(db.to_string(True))
 
+
+# use library objects to go through database
+# ======================================================================================================================
+import holbarun
+import logslist
+import program
+import experiment
+
+# db connection
+print("opening db...")
+print()
+db = ldb.LogsDB(db_file)
+db.connect()
+
+
+print("\nholbaruns")
+runs = holbarun.HolbaRun._get_all(db)
+print(runs)
+assert(holbarun.HolbaRun(db, 1) == runs[0])
+
+print("\nprog_lists")
+prog_lists = logslist.LogsList._get_all(db, "prog")
+print(prog_lists)
+assert(logslist.LogsList(db, "prog", 1) == prog_lists[0])
+
+print("\nprogs entries")
+prog_list = prog_lists[0]
+print(prog_list.get_entry_ids())
+prog_l_progs = prog_list.get_entries()
+print(prog_l_progs)
+assert(prog_l_progs[0] == program.Program(db, prog_l_progs[0].get_prog_id()))
+
+print("\nexps")
+exp_lists = logslist.LogsList._get_all(db, "exp")
+assert(logslist.LogsList(db, "exp", 1) == exp_lists[0])
+
+print("\nexps entries")
+print(exp_lists)
+exp_list = next(x for x in exp_lists if x.get_name() == "holbarun_1")
+exp_l_exps = exp_list.get_entries()
+print(exp_l_exps)
+assert(exp_l_exps[0] == experiment.Experiment(db, exp_l_exps[0].get_exp_id()))
+
+print("\nexp")
+exp = exp_l_exps[3]
+print(exp.is_valid_experiment())
+print(exp.get_exp_type())
+print(exp.get_exp_params())
+print(exp.get_inputs())
+print(list(map(lambda x: exp.get_input_state(x), ["input_1", "input_2", "input_train"])))
+
+print("\nprog")
+prog = exp.get_prog()
+print(prog)
+print(prog.get_arch())
+print(prog.get_code())
+
+print("\nexp again")
+exp.print()
+
+
+print("\nexperiment run")
+print(exp.get_exp_id())
+run_spec = exp.get_run_specs()[0]
+print(run_spec)
+run_id   = exp.get_latest_run_id(run_spec)
+print(run_id)
+run_data = {"output_uart": "forgot to write2", "result": [True, "hello there"]}
+print(exp.write_new_run(run_spec, run_data))
+run_data = exp.get_run_data(run_id)
+print(run_data)
+
+
 # all successful
+# ======================================================================================================================
 print()
 print("All tests finished successfully.")
+
