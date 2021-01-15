@@ -14,7 +14,7 @@ import logsdb as ldb
 parser = argparse.ArgumentParser(description='Database interface with operation as argument and json formatted input and output.',
                                  epilog="Provide json formatted arguments on stdin, receive json formatted result on stdout (in case there are no exceptions).")
 
-parser.add_argument("operation",       help="operation to execute on database", choices=["backup", "importdb", "create", "append", "query"])
+parser.add_argument("operation",       help="operation to execute on database", choices=["create", "append", "query"])
 
 parser.add_argument("-i", "--input", help="take input as command line argument instead of stdin")
 
@@ -43,18 +43,6 @@ else:
 	json_arguments = json.load(sys.stdin)
 
 # define executions for each operation type
-""" op:backup """
-def op_backup(db, json_args):
-	db.backup()
-	return True
-
-
-""" op:importdb """
-def op_importdb(db, json_args):
-	raise Exception("not implemented")
-	return False
-
-
 """ op:create """
 def op_create(db, json_args):
 	# input check
@@ -156,19 +144,18 @@ def op_query(db, json_args):
 		raise Exception("unknown query type: " + q_type)
 
 
-opdict = {"backup"  : op_backup,
-          "importdb": op_importdb,
-          "create"  : op_create,
+opdict = {"create"  : op_create,
           "append"  : op_append,
           "query"   : op_query}
 
-# execute operation accordingly
+# select operation accordingly
 logging.info(f"executing operation {operation}")
 opfun = opdict[operation]
 
 # create db access object
 alt_db_file = None if not is_testing else "data/testing.db"
 with ldb.LogsDB(alt_db_file) as db:
+	# execute operation
 	ret_val = opfun(db, json_arguments)
 
 # return value is serialized with json and printed on stdout
