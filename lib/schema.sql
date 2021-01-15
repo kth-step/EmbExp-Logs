@@ -79,7 +79,9 @@ CREATE TABLE exp_progs_lists (
 CREATE TABLE exp_progs_lists_entries (
   exp_progs_lists_id INTEGER,
   exp_progs_id INTEGER,
+  list_index INTEGER NOT NULL,
   CONSTRAINT PK_exp_progs_lists_entries PRIMARY KEY (exp_progs_lists_id,exp_progs_id),
+  CONSTRAINT UC_exp_progs_lists UNIQUE (exp_progs_lists_id, list_index),
   CONSTRAINT FK_exp_progs_lists FOREIGN KEY (exp_progs_lists_id) REFERENCES exp_progs_lists(id),
   CONSTRAINT FK_exp_progs       FOREIGN KEY (exp_progs_id)       REFERENCES exp_progs(id)
 );
@@ -96,7 +98,9 @@ CREATE TABLE exp_exps_lists (
 CREATE TABLE exp_exps_lists_entries (
   exp_exps_lists_id INTEGER,
   exp_exps_id INTEGER,
+  list_index INTEGER NOT NULL,
   CONSTRAINT PK_exp_exps_lists_entries PRIMARY KEY (exp_exps_lists_id,exp_exps_id),
+  CONSTRAINT UC_exp_exps_lists UNIQUE (exp_exps_lists_id, list_index),
   CONSTRAINT FK_exp_exps_lists FOREIGN KEY (exp_exps_lists_id) REFERENCES exp_exps_lists(id),
   CONSTRAINT FK_exp_exps       FOREIGN KEY (exp_exps_id)       REFERENCES exp_exps(id)
 );

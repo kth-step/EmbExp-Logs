@@ -40,7 +40,7 @@ class LogsList:
 			tr = ldb.get_empty_TableRecord(f"exp_{self.listtype}s_lists_entries")
 			tr_ = tr._replace(**{f"exp_{self.listtype}s_lists_id": self.get_logslist_id()})
 			entries = self.db.get_tablerecord_matches(tr_)
-			self.entry_ids = list(map(lambda x: getattr(x, f"exp_{self.listtype}s_id"), entries))
+			self.entry_ids = list(map(lambda x: (x.list_index, getattr(x, f"exp_{self.listtype}s_id")), entries))
 		return self.entry_ids
 
 	def get_entries(self):
@@ -53,7 +53,7 @@ class LogsList:
 				genfun = experiment.Experiment
 			else:
 				assert(False)
-			self.entries = list(map(lambda x: genfun(self.db, x), entry_ids))
+			self.entries = list(map(lambda x: (x[0], genfun(self.db, x[1])), entry_ids))
 		return self.entries
 
 	# find logslists

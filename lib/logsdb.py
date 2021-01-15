@@ -58,14 +58,14 @@ TR_exp_progs_lists = (
   ["id", "name", "description"]))
 TR_exp_progs_lists_entries = (
   collections.namedtuple("TR_exp_progs_lists_entries",
-  ["exp_progs_lists_id", "exp_progs_id"]))
+  ["exp_progs_lists_id", "exp_progs_id", "list_index"]))
 
 TR_exp_exps_lists = (
   collections.namedtuple("TR_exp_exps_lists",
   ["id", "name", "description"]))
 TR_exp_exps_lists_entries = (
   collections.namedtuple("TR_exp_exps_lists_entries",
-  ["exp_exps_lists_id", "exp_exps_id"]))
+  ["exp_exps_lists_id", "exp_exps_id", "list_index"]))
 
 TR_db_meta = (
   collections.namedtuple("TR_db_meta",

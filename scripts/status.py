@@ -73,6 +73,7 @@ else:
 	raise Exception("we always need to use a list currently")
 
 # filter out the valid experiments
+exps = list(map(lambda exp: exp[1], exps))
 exps = list(filter(lambda exp: exp.is_valid_experiment(), exps))
 
 # collect all programs and experiments

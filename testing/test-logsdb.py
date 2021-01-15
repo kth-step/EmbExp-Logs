@@ -76,20 +76,22 @@ def initial_db_tests(db):
 	# add two progs for each run
 	def add_prog(i, holbarun):
 		prog = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs")._replace(arch = "arch5000", code = f"crazy code {i}"))
-		db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=holbarun.exp_progs_lists_id, exp_progs_id=prog.id))
+		db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=holbarun.exp_progs_lists_id, exp_progs_id=prog.id, list_index=i))
 		return prog
 
 	prog_11 = add_prog(11, holbarun_1)
 	prog_12 = add_prog(12, holbarun_1)
 	prog_21 = add_prog(21, holbarun_2)
 	prog_22 = add_prog(22, holbarun_2)
+	# should not be able to add entry without index
+	ensure_failing(db.add_tablerecord, ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=holbarun_1.exp_progs_lists_id, exp_progs_id=prog_22.id, list_index=None))
 	# add one program in the list of the other run, this should work
-	db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=holbarun_1.exp_progs_lists_id, exp_progs_id=prog_22.id))
+	db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=holbarun_1.exp_progs_lists_id, exp_progs_id=prog_22.id, list_index=1))
 
 	# add a few experiments, two per program
 	def add_exp(i, prog, holbarun):
 		exp = db.add_tablerecord(ldb.TR_exp_exps(id=None, exp_progs_id=prog.id, type="exps2", params="amazing_model", input_data=f'{{"input_1":{{}},"input_2":{{}},"input_train":{{}},"extra":"crazy inputs {i}"}}'))
-		db.add_tablerecord(ldb.TR_exp_exps_lists_entries(exp_exps_lists_id=holbarun.exp_exps_lists_id, exp_exps_id=exp.id))
+		db.add_tablerecord(ldb.TR_exp_exps_lists_entries(exp_exps_lists_id=holbarun.exp_exps_lists_id, exp_exps_id=exp.id, list_index=i))
 		return exp
 
 	exp_111 = add_exp(111, prog_11, holbarun_1)
@@ -365,7 +367,8 @@ prog_list = prog_lists[0]
 print(prog_list.get_entry_ids())
 prog_l_progs = prog_list.get_entries()
 print(prog_l_progs)
-assert(prog_l_progs[0] == program.Program(db, prog_l_progs[0].get_prog_id()))
+(_, prog_l_progs_0) = prog_l_progs[0]
+assert(prog_l_progs_0 == program.Program(db, prog_l_progs_0.get_prog_id()))
 
 print("\nexps")
 exp_lists = logslist.LogsList._get_all(db, "exp")
@@ -376,10 +379,11 @@ print(exp_lists)
 exp_list = next(x for x in exp_lists if x.get_name() == "holbarun_1")
 exp_l_exps = exp_list.get_entries()
 print(exp_l_exps)
-assert(exp_l_exps[0] == experiment.Experiment(db, exp_l_exps[0].get_exp_id()))
+(_, exp_l_exps_0) = exp_l_exps[0]
+assert(exp_l_exps_0 == experiment.Experiment(db, exp_l_exps_0.get_exp_id()))
 
 print("\nexp")
-exp = exp_l_exps[3]
+(_, exp) = exp_l_exps[3]
 print(exp.is_valid_experiment())
 print(exp.get_exp_type())
 print(exp.get_exp_params())

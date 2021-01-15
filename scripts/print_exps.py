@@ -35,5 +35,5 @@ exps = logslist.LogsList._get_by_name(db, "exp", listname).get_entries()
 # print all exps
 for exp in exps:
 	print("=" * 100)
-	exp.print()
+	exp[1].print()
 

@@ -59,6 +59,7 @@ def is_latest_exp_run_not_complete(exp):
 
 def genfun():
 	exps = logslist.LogsList._get_by_name(db, "exp", listname).get_entries()
+	exps = map(lambda x: x[1], exps)
 	ffun = is_latest_exp_run_not_complete
 	# if not fix_all, we want to run once for each experiment
 	if not fix_all:
@@ -96,7 +97,7 @@ try:
 			successful = False
 			logging.warning("- unsuccessful")
 except KeyboardInterrupt:
-	pass
+	successful = False
 
 print()
 print("="*40)

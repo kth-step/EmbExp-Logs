@@ -146,10 +146,12 @@ def store_holba_run(holbarun_id, meta):
 	return (holbarun.id, progs_list.id, exps_list.id)
 
 holbarun_ids_map = {}
+holbarun_l_idx_map = {}
 for holbarun_id in holbaruns:
 	meta = get_holbarun(holbarun_id)
 	db_ids = store_holba_run(holbarun_id, meta)
 	holbarun_ids_map[holbarun_id] = db_ids
+	holbarun_l_idx_map[holbarun_id] = {"prog_l": 1, "exp_l": 1}
 	print('.', end='', flush=True)
 
 
@@ -181,11 +183,13 @@ def get_prog(prog_id):
 
 # create list for adding progs to be imported
 progs_all_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs_lists")._replace(name=f"IMPORTOLD.{time_str_for_db}", description="collection for import from old files"))
+progs_all_list_idx = [1]
 def store_prog(prog_id, code, meta):
 	assert(arch_id == "arm8")
 	# add program and also add it to common import list
 	prog_db = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs")._replace(arch=arch_id, code=code), match_existing=True)
-	db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=progs_all_list.id, exp_progs_id=prog_db.id))
+	db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=progs_all_list.id, exp_progs_id=prog_db.id, list_index=progs_all_list_idx[0]))
+	progs_all_list_idx[0] += 1
 	# add metadata
 	for (k,n,v) in meta:
 		tr_meta = ldb.TR_exp_progs_meta(exp_progs_id=prog_db.id, kind=k, name=n, value=v)
@@ -195,7 +199,9 @@ def store_prog(prog_id, code, meta):
 			horun_id = n.split(".")[1]
 			if horun_id in holbarun_ids_map.keys():
 				prog_l_id = holbarun_ids_map[horun_id][1]
-				db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=prog_l_id, exp_progs_id=prog_db.id))
+				prog_l_list_idx = holbarun_l_idx_map[holbarun_id]["prog_l"]
+				db.add_tablerecord(ldb.TR_exp_progs_lists_entries(exp_progs_lists_id=prog_l_id, exp_progs_id=prog_db.id, list_index=prog_l_list_idx))
+				holbarun_l_idx_map[holbarun_id]["prog_l"] = prog_l_list_idx + 1
 	return prog_db.id
 
 prog_ids_map = {}
@@ -274,6 +280,7 @@ def get_exp(exp_id):
 
 # create list for adding all experiments
 exps_all_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_exps_lists")._replace(name=f"IMPORTOLD.{time_str_for_db}", description="collection for import from old files"))
+exps_all_list_idx = [1]
 def store_exp(exp_data):
 	(codehash, exp_type, exp_params, input_data, meta, runs) = exp_data
 	# add exp and also add it to common import list
@@ -285,7 +292,8 @@ def store_exp(exp_data):
 			input_data=input_data
 		)
 	exp_db = db.add_tablerecord(exp_tr, match_existing=True)
-	db.add_tablerecord(ldb.TR_exp_exps_lists_entries(exp_exps_lists_id=exps_all_list.id, exp_exps_id=exp_db.id))
+	db.add_tablerecord(ldb.TR_exp_exps_lists_entries(exp_exps_lists_id=exps_all_list.id, exp_exps_id=exp_db.id, list_index=exps_all_list_idx[0]))
+	exps_all_list_idx[0] += 1
 	# add metadata
 	for (k,n,v) in meta:
 		tr_meta = ldb.TR_exp_exps_meta(exp_exps_id=exp_db.id, kind=k, name=n, value=v)
@@ -295,7 +303,9 @@ def store_exp(exp_data):
 			horun_id = n.split(".")[1]
 			if horun_id in holbarun_ids_map.keys():
 				exp_l_id = holbarun_ids_map[horun_id][2]
-				db.add_tablerecord(ldb.TR_exp_exps_lists_entries(exp_exps_lists_id=exp_l_id, exp_exps_id=exp_db.id))
+				exp_l_list_idx = holbarun_l_idx_map[holbarun_id]["exp_l"]
+				db.add_tablerecord(ldb.TR_exp_exps_lists_entries(exp_exps_lists_id=exp_l_id, exp_exps_id=exp_db.id, list_index=exp_l_list_idx))
+				holbarun_l_idx_map[holbarun_id]["exp_l"] = exp_l_list_idx + 1
 	# add runs
 	for run in runs:
 		(run_name,run_data) = run
