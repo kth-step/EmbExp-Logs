@@ -30,9 +30,6 @@ parser.add_argument("-fci", "--force_cleanup_ignored", help="force cleanup of al
 # post-cleanup of progplatform
 parser.add_argument("-npc", "--no_post_clean",    help="do not cleanup after running", action="store_true")
 
-# storage of results in the database
-parser.add_argument("-wr", "--write_results",    help="write results of this experiment run", action="store_true")
-
 parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
 args = parser.parse_args()
 
@@ -60,7 +57,7 @@ print("opening db...")
 print()
 with ldb.LogsDB() as db:
 	exp = experiment.Experiment(db, int(args.exp_id))
-	exp_runner.run_experiment(exp, progplat, args.board_type, args.branchname, args.conn_mode, force_cleanup, args.no_post_clean, True, write_results=args.write_results, run_input_state=args.input_state)
+	exp_runner.run_experiment(exp, progplat, args.board_type, args.branchname, args.conn_mode, force_cleanup, args.no_post_clean, True, run_input_state=args.input_state)
 
 
 

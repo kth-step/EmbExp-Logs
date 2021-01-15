@@ -9,6 +9,7 @@ import logging
 
 import logsdb as ldb
 import progplatform
+import exprun
 import experiment
 from helpers import *
 from exp_runner import *
@@ -33,7 +34,7 @@ logs_root = args.logs_root
 if arch_id == None:
 	arch_id = "arm8"
 
-time_str_for_db = experiment._gen_dotfree_time_str()
+time_str_for_db = exprun._gen_dotfree_time_str()
 
 def read_file(b, fn):
 	with open(os.path.join(b, fn), "r") as f:

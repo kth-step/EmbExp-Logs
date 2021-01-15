@@ -1,7 +1,12 @@
 
 import logging
+import datetime
 
 import logsdb as ldb
+
+def _gen_dotfree_time_str():
+	now = datetime.datetime.now()
+	return now.strftime("%Y-%m-%d_%H-%M-%S_%f")[:-3]
 
 class ExpRun:
 	def __init__(self, db, exprun):
@@ -20,6 +25,13 @@ class ExpRun:
 	def get_name(self):
 		return self.exprun.name
 
+	# create exp runs
+	# =========================================
+	def _create(db):
+		name = _gen_dotfree_time_str()
+		tr = ldb.TR_exp_runs(id=None, name=name)
+		db.add_tablerecord(tr)
+		return ExpRun(db, tr)
 
 	# find exp runs
 	# =========================================

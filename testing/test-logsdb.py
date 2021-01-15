@@ -440,8 +440,10 @@ run_spec = exp.get_run_specs()[0]
 print(run_spec)
 run_id   = exp.get_latest_run_id(run_spec)
 print(run_id)
+exprun = exprun.ExpRun._create(db)
+print(exprun)
 run_data = {"output_uart": "forgot to write2", "result": [True, "hello there"]}
-print(exp.write_new_run(run_spec, run_data))
+print(exp.write_new_run(exprun, run_spec, run_data))
 run_data = exp.get_run_data(run_id)
 print(run_data)
 

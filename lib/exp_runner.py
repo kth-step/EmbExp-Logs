@@ -6,8 +6,8 @@ import experiment
 import progplatform
 from helpers import *
 
-def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, write_results = True, run_input_state = None):
-	logging.info(f"{(exp, progplat, board_type, branchname, conn_mode, pre_cleanup, no_post_cleanup, printeval, ignoremismatch, write_results, run_input_state)}")
+def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, exprun = None, run_input_state = None):
+	logging.info(f"{(exp, progplat, board_type, branchname, conn_mode, pre_cleanup, no_post_cleanup, printeval, ignoremismatch, exprun, run_input_state)}")
 	if progplat == None:
 		progplat = progplatform.get_embexp_ProgPlatform(None)
 
@@ -99,11 +99,11 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 		# save the outputs and test metadata
 		# ======================================
 		nomismatches = True
-		if write_results:
+		if exprun != None:
 			logging.info(f"saving experiment data")
 			run_data = {"output_uart": uartlogdata,
                                     "result":      result}
-			nomismatches = exp.write_new_run(run_spec, run_data)
+			nomismatches = exp.write_new_run(exprun, run_spec, run_data)
 
 	finally:
 		if not no_post_cleanup:

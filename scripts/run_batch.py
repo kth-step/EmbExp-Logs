@@ -8,6 +8,7 @@ import argparse
 import logging
 
 import logsdb as ldb
+import exprun
 import experiment
 import logslist
 import exp_finder
@@ -74,6 +75,9 @@ if fix_all:
 else:
 	exp_iter = exp_finder.NonPollingListIterator(genfun(**genargs))
 
+# create exp run in db
+exprun = exprun.ExpRun._create(db)
+
 # launch the runner script for each experiment in the list
 # ======================================
 logging.info(f"running all selected experiments")
@@ -87,7 +91,7 @@ try:
 		(iter_round, iter_idx, iter_size) = exp_iter.get_iterinfo()
 		print(f"===>>> [r:{iter_round}, {(iter_idx/iter_size * 100):.2f}% of {iter_size}] {exp}")
 		try:
-			result_val = exp_runner.run_experiment(exp, progplat, board_type, conn_mode=args.conn_mode)
+			result_val = exp_runner.run_experiment(exp, progplat, board_type, conn_mode=args.conn_mode, exprun=exprun)
 			someSuccessful = True
 			if result_val != True:
 				print(f"         - Interesting result: {result_val}")

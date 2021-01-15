@@ -8,6 +8,7 @@ import argparse
 import logging
 
 import logsdb as ldb
+import exprun
 import holbarun
 import logslist
 import progplatform
@@ -77,6 +78,9 @@ if args.print_structures:
 	print("program lists: ")
 	for el in logslist.LogsList._get_all(db, "prog"):
 		print(f"- '{el.get_name()}' ({el.get_description()})")
+	print("exp runs: ")
+	for expr in exprun.ExpRun._get_all(db):
+		print(f"- '{expr.get_name()}'")
 	print()
 
 listname = args.listname

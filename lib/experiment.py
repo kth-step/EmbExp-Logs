@@ -2,7 +2,6 @@
 import logging
 import os
 import json
-import datetime
 
 import logsdb as ldb
 import program
@@ -19,9 +18,6 @@ def _dest_run_id(run_id):
 		parts.append("old_files")
 	assert(len(parts) == 3)
 	return (".".join(parts[0:2]), parts[2])
-def _gen_dotfree_time_str():
-	now = datetime.datetime.now()
-	return now.strftime("%Y-%m-%d_%H-%M-%S_%f")[:-3]
 
 class Experiment:
 	def __init__(self, db, exp):
@@ -133,11 +129,11 @@ class Experiment:
 
 	# recording a new run
 	# =========================================
-	def write_new_run(self, run_spec, run_data):
+	def write_new_run(self, exprun, run_spec, run_data):
 		assert(len(run_spec.split(".")) == 2)
 		assert(Experiment.is_complete_run(run_data))
 
-		run_id = run_spec + "." + _gen_dotfree_time_str()
+		run_id = run_spec + "." + exprun.get_name()
 		meta_name = _run_id_meta_prefix + run_id
 
 		last_run_id = self.get_latest_run_id(run_spec)
