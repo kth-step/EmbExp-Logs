@@ -8,6 +8,7 @@ import argparse
 import logging
 
 import logsdb as ldb
+import holbarun
 import logslist
 import progplatform
 import experiment
@@ -21,6 +22,8 @@ parser.add_argument("-bt", "--board_type", help="broad_type", choices=['rpi3', '
 parser.add_argument("-rs", "--run_spec", help="spec of run made up of ProgPlatform commit hash and board type, for example: 13700076ab79095f15468f0c489fa587ac225626.rpi3")
 
 parser.add_argument("-ln", "--listname", help="list to use as set of experiments")
+
+parser.add_argument("-ps", "--print_structures",      help="print the holbaruns, and prog/exp lists", action="store_true")
 
 parser.add_argument("-pp", "--print_progs",           help="print the list of programs", action="store_true")
 
@@ -63,6 +66,18 @@ print("opening db...")
 print()
 db = ldb.LogsDB(read_only=True)
 db.connect()
+
+if args.print_structures:
+	print("holba runs: ")
+	for hbar in holbarun.HolbaRun._get_all(db):
+		print(f"- '{hbar.get_name()}'")
+	print("experiment lists: ")
+	for el in logslist.LogsList._get_all(db, "exp"):
+		print(f"- '{el.get_name()}' ({el.get_description()})")
+	print("program lists: ")
+	for el in logslist.LogsList._get_all(db, "prog"):
+		print(f"- '{el.get_name()}' ({el.get_description()})")
+	print()
 
 listname = args.listname
 exps = None
