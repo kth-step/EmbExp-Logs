@@ -14,6 +14,9 @@ def _mk_run_spec(progplat_hash, board_type):
 	return f"{progplat_hash}.{board_type}"
 def _dest_run_id(run_id):
 	parts = run_id.split(".")
+	# fix for old file entries (singleton)
+	if len(parts) == 2 and parts[1] == "rpi3":
+		parts.append("old_files")
 	assert(len(parts) == 3)
 	return (".".join(parts[0:2]), parts[2])
 def _gen_dotfree_time_str():

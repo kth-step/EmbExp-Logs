@@ -140,22 +140,19 @@ def _get_repo_rel_path(p):
 	return os.path.join(os.path.join(os.path.dirname(__file__), ".."), p)
 
 class LogsDB:
-	def __init__(self, alt_db_file = None):
-		db_path = os.path.join("data", "logs.db")
-		if alt_db_file != None:
-			alt_db_file = _get_repo_rel_path(alt_db_file)
-			if not ((os.path.isfile(alt_db_file)) or (not os.path.exists(alt_db_file))):
-				raise Exception("alternative database file must be a path to an existing file or the path not should exist")
-			self.database_file = alt_db_file
-			db_dir = os.path.dirname(self.database_file)
-		else:
-			self.database_file = _get_repo_rel_path(db_path)
-			db_dir = os.path.dirname(self.database_file)
+	def __init__(self, db_file = None):
+		if db_file == None:
+			db_file = os.path.join("data", "logs.db")
+
+		self.database_file = _get_repo_rel_path(db_file)
+		if os.path.isdir(self.database_file):
+			raise Exception("database file cannot be a directory")
+
+		db_dir = os.path.dirname(self.database_file)
+		self.backup_dir = self.database_file + ".backups"
 
 		if not os.path.isdir(db_dir):
 			os.mkdir(db_dir)
-
-		self.backup_dir = self.database_file + ".backups"
 
 		if not os.path.isdir(self.backup_dir):
 			os.mkdir(self.backup_dir)
@@ -250,14 +247,14 @@ class LogsDB:
 		return (data_type, table)
 
 	# append new datasets, should not break database integrity constraints (we have an extra function to append to existing metadata)
-	def add_tablerecord(self, data, id_only = False, match_existing = False):
+	def add_tablerecord(self, data, id_only = False, match_existing = False, allow_id = False):
 		(data_type, table) = LogsDB._get_tablerecord_info(data)
 
 		# match_existing: match existing entries: matches existing, or creates new entry only if matching does not exist yet
 
 		fields = list(data._fields)
 		# tables with a generic id field need special treatment
-		if "id" in fields:
+		if (not allow_id) and ("id" in fields):
 			if data.id != None:
 				raise Exception(f"the id cannot be forced on entries for table '{table}', must be None here")
 			fields.remove("id")
