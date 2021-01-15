@@ -140,7 +140,9 @@ def _get_repo_rel_path(p):
 	return os.path.join(os.path.join(os.path.dirname(__file__), ".."), p)
 
 class LogsDB:
-	def __init__(self, db_file = None):
+	def __init__(self, db_file = None, read_only = False):
+		self.read_only = read_only
+
 		if db_file == None:
 			db_file = os.path.join("data", "logs.db")
 
@@ -161,7 +163,8 @@ class LogsDB:
 		# check if database already exists, if not create tables and version information from schema.sql
 		database_exists = os.path.isfile(self.database_file)
 
-		self.con = sl.connect(self.database_file)
+		db_con_str = f"file:{self.database_file}" + ("?mode=ro" if self.read_only else "")
+		self.con = sl.connect(db_con_str, uri=True)
 		self.con.row_factory = sl.Row
 
 		if not database_exists:
@@ -545,6 +548,14 @@ class LogsDB:
 					return c_l[0][count_column_id]
 		except:
 			raise Exception("retrieving data failed")
+
+	# raw sql query, for most complex queries, very generic, is only allowed when database is in read-only mode
+	# if table name is provided, table record values are created
+	def get_tablerecords_sql(self, sql, t = None):
+		if not self.read_only:
+			raise Exception("only allowed in read-only mode")
+
+		raise Exception("not implemented")
 
 	def to_string(self, with_entries = False):
 		res = []

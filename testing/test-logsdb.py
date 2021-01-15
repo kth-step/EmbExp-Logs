@@ -12,17 +12,19 @@ import logsdb as ldb
 # raise the logging level
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
-def initial_db_tests(db):
-	# helper function to check failing cases
-	def ensure_failing(f, *a):
-		try_fin = False
-		try:
-			f(*a)
-			try_fin = True
-		except Exception as e:
-			print(e)
-		assert(not try_fin)
 
+# helper function to check failing cases
+def ensure_failing(f, *a):
+	try_fin = False
+	try:
+		f(*a)
+		try_fin = True
+	except Exception as e:
+		print(e)
+	assert(not try_fin)
+
+
+def initial_db_tests(db):
 	# general tests
 	TR_db_meta_empty = ldb.TR_db_meta._make([None]*4)
 	assert(TR_db_meta_empty == ldb.get_empty_TableRecord(ldb.TR_db_meta))
@@ -332,7 +334,25 @@ input101_ret  = run_db_interface_py("create", input101, "UNIQUE constraint faile
 assert(input101_ret == ret_failure)
 
 
+# test read-only mode
+# ======================================================================================================================
+tr_readonlytest = ldb.get_empty_TableRecord("exp_progs")._replace(arch="newarch", code="newcode")
+
+with ldb.LogsDB(db_file, read_only=True) as db:
+	ensure_failing(db.add_tablerecord, tr_readonlytest)
+
+with ldb.LogsDB(db_file) as db:
+	tr_readonlytest_res = db.add_tablerecord(tr_readonlytest)
+
+with ldb.LogsDB(db_file, read_only=True) as db:
+	tr_q = ldb.get_empty_TableRecord("exp_progs")._replace(id=tr_readonlytest_res.id)
+	tr_readonlytest_res2 = db.get_tablerecord_matches(tr_q)[0]
+	assert(tr_readonlytest_res2 == tr_readonlytest_res)
+	ensure_failing(db.add_tablerecord, tr_readonlytest._replace(arch="latestarch"))
+
+
 # print state of database
+# ======================================================================================================================
 with ldb.LogsDB(db_file) as db:
 	print("=" * 40)
 	print(db.to_string(True))

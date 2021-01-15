@@ -61,7 +61,7 @@ print()
 
 print("opening db...")
 print()
-db = ldb.LogsDB()
+db = ldb.LogsDB(read_only=True)
 db.connect()
 
 listname = args.listname
