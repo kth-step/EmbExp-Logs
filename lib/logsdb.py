@@ -39,6 +39,13 @@ TR_holba_runs_meta = (
   collections.namedtuple("TR_holba_runs_meta",
   ["holba_runs_id", "kind", "name", "value"]))
 
+TR_exp_runs = (
+  collections.namedtuple("TR_exp_runs",
+  ["id", "name"]))
+TR_exp_runs_meta = (
+  collections.namedtuple("TR_exp_runs_meta",
+  ["exp_runs_id", "kind", "name", "value"]))
+
 TR_exp_progs = (
   collections.namedtuple("TR_exp_progs",
   ["id", "arch", "code"]))
@@ -80,6 +87,10 @@ TR_by_table = {
     TR_holba_runs,
   "holba_runs_meta" :
     TR_holba_runs_meta,
+  "exp_runs" :
+    TR_exp_runs,
+  "exp_runs_meta" :
+    TR_exp_runs_meta,
   "exp_progs" :
     TR_exp_progs,
   "exp_progs_meta" :
@@ -115,6 +126,8 @@ TableLinks = {
   ("holba_runs"             , "exp_progs_lists"): ("exp_progs_lists_id", "id"),
   ("holba_runs"             , "exp_exps_lists"):  ("exp_exps_lists_id" , "id"),
   ("holba_runs"             , "holba_runs_meta"): ("id"                , "holba_runs_id"),
+
+  ("exp_runs"               , "exp_runs_meta"):   ("id"                , "exp_runs_id"),
 
   ("exp_progs_lists_entries", "exp_progs_lists"): ("exp_progs_lists_id", "id"),
   ("exp_progs_lists_entries", "exp_progs"):       ("exp_progs_id"      , "id"),

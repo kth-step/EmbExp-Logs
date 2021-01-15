@@ -29,6 +29,23 @@ CREATE TABLE holba_runs_meta (
 );
 
 -- ===================================================
+-- exp runs: unique names - like holba runs
+CREATE TABLE exp_runs (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  CONSTRAINT UC_exp_runs UNIQUE (name)
+);
+-- metadata for exp runs
+CREATE TABLE exp_runs_meta (
+  exp_runs_id INTEGER,
+  kind TEXT,
+  name TEXT NOT NULL,
+  value TEXT,
+  CONSTRAINT PK_exp_runs_meta PRIMARY KEY (exp_runs_id,kind,name),
+  CONSTRAINT FK_exp_runs FOREIGN KEY (exp_runs_id) REFERENCES exp_runs(id)
+);
+
+-- ===================================================
 -- experiment programs: unique code (asm code, needs normalized code to work)
 CREATE TABLE exp_progs (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -75,7 +92,7 @@ CREATE TABLE exp_progs_lists (
   description TEXT,
   CONSTRAINT UC_exp_progs_lists UNIQUE (name)
 );
--- link between program lists and their programs
+-- link between program lists and their programs (plus a unique index within a list)
 CREATE TABLE exp_progs_lists_entries (
   exp_progs_lists_id INTEGER,
   exp_progs_id INTEGER,
@@ -94,7 +111,7 @@ CREATE TABLE exp_exps_lists (
   description TEXT,
   CONSTRAINT UC_exp_exps_lists UNIQUE (name)
 );
--- link between experiment lists and their experiments
+-- link between experiment lists and their experiments (plus a unique index within a list)
 CREATE TABLE exp_exps_lists_entries (
   exp_exps_lists_id INTEGER,
   exp_exps_id INTEGER,

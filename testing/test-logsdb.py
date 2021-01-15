@@ -56,6 +56,16 @@ def initial_db_tests(db):
 	# try to break uniqueness constraint
 	ensure_failing(db.add_tablerecord, ldb.TR_db_meta(id=None, kind="hello8", name='123', value='111'))
 
+	# add two expruns
+	def create_exprun(i):
+		exprun   = db.add_tablerecord(ldb.TR_exp_runs(
+			id=None, name=f"2021-01-14_20-38-05_069_{i}"))
+		return exprun
+	exprun_1 = create_exprun(1)
+	exprun_2 = create_exprun(2)
+	# not the same name twice
+	ensure_failing(db.add_tablerecord, exprun_2._replace(id=None))
+
 	# add two holbaruns
 	def create_holbarun(i):
 		progs_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs_lists")._replace(name = f"holbarun_{i}"))
@@ -181,7 +191,7 @@ def initial_db_tests(db):
 	assert(meta3 == meta3_1)
 
 	# add a fake experiment run to play with
-	meta_exp_run_name = "run.a4bc8ffc998095be7293fdea7a90f07faa257b40.rpi3.2021-01-14_20-38-05_069"
+	meta_exp_run_name = "run.a4bc8ffc998095be7293fdea7a90f07faa257b40.rpi3." + exprun_1.name
 	meta_exp_run_out = ldb.TR_exp_exps_meta(exp_exps_id=exp_122.id, kind="output_uart", name=meta_exp_run_name, value="Init complete.\nRESULT: EQUAL\nExperiment complete.\n")
 	meta_exp_run_res = ldb.TR_exp_exps_meta(exp_exps_id=exp_122.id, kind="result", name=meta_exp_run_name, value="true")
 	db.add_tablerecord(meta_exp_run_out)
@@ -360,6 +370,7 @@ with ldb.LogsDB(db_file) as db:
 
 # use library objects to go through database
 # ======================================================================================================================
+import exprun
 import holbarun
 import logslist
 import program
@@ -371,6 +382,9 @@ print()
 db = ldb.LogsDB(db_file)
 db.connect()
 
+print("\nexpruns")
+eruns = exprun.ExpRun._get_all(db)
+print(eruns)
 
 print("\nholbaruns")
 runs = holbarun.HolbaRun._get_all(db)
