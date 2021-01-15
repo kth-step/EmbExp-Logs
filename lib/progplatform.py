@@ -119,8 +119,10 @@ class ProgPlatform:
 		code_asm = exp.get_prog().get_code()
 		train    = exp.get_input_state("input_train")
 		input1   = exp.get_input_state("input_1" if run_input_state == None else run_input_state)
+		assert input1 != None
 		if exp_type == "exps2":
 			input2   = exp.get_input_state("input_2")
+			assert input2 != None
 
 		config_text = ""
 		config_text += f"PROGPLAT_ARCH         ={exp.get_prog().get_arch()}\n"
