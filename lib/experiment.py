@@ -57,14 +57,16 @@ class Experiment:
 			d_ = {}
 			for k in d:
 				v = d[k]
-				k = int(k, 16) if convkey else k
+				k = (int(k, 16) if type(k) == str else k) if convkey else k
 				if isinstance(v, dict):
 					v_ = value_parse_rec(v, True)
 				else:
-					v_ = int(v, 16)
+					v_ = int(v, 16) if type(v) == str else v
 				d_[k] = v_
 			return d_
 
+		if not statename in inp.keys():
+			return None
 		return value_parse_rec(inp[statename])
 
 	def get_input_state(self, statename):

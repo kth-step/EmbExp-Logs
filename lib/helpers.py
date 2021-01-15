@@ -6,10 +6,6 @@ import subprocess
 
 # helpers
 # ======================================
-logs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-def get_logs_path(path):
-	return os.path.join(logs_path, path)
-
 def call_cmd_get_output(cmdl, error_msg, show_error = True):
 	error_file = None
 	if not show_error:
@@ -140,9 +136,12 @@ def gen_input_code_mem(memmap):
 def gen_input_code(statemap):
 	memmap={}
 
-	for k in statemap['mem'].keys():
-		memmap[int(k)] = statemap['mem'][k]
-	del statemap['mem']
+	mem_key = 'mem'
+
+	if mem_key in statemap.keys():
+		for k in statemap[mem_key].keys():
+			memmap[int(k)] = statemap[mem_key][k]
+		del statemap[mem_key]
 
 	asm1 = gen_input_code_reg(statemap)
 	regsetter = asm1

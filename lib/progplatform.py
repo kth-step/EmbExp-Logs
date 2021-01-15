@@ -136,7 +136,8 @@ class ProgPlatform:
 			f.write(config_text)
 
 		self.write_experiment_file("asm.h", code_asm)
-		self.write_experiment_file("asm_train.h", gen_input_code(train))
+		if train != None:
+			self.write_experiment_file("asm_train.h", gen_input_code(train))
 		self.write_experiment_file("asm_setup1.h", gen_input_code(input1))
 		if exp_type == "exps2":
 			self.write_experiment_file("asm_setup2.h", gen_input_code(input2))
