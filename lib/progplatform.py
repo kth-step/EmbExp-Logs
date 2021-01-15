@@ -124,7 +124,7 @@ class ProgPlatform:
 
 		config_text = ""
 		config_text += f"PROGPLAT_ARCH         ={exp.get_prog().get_arch()}\n"
-		config_text += f"PROGPLAT_TYPE         ={exp.get_exp_type()}\n"
+		config_text += f"PROGPLAT_TYPE         ={exp_type}\n"
 		config_text += f"PROGPLAT_PARAMS       ={exp.get_exp_params()}\n"
 		config_text += f"PROGPLAT_BOARD        ={board_type}\n"
 		if exp_type == "exps2":
