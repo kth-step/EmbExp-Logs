@@ -14,7 +14,7 @@ import logsdb as ldb
 parser = argparse.ArgumentParser(description='Database interface with operation as argument and json formatted input and output.',
                                  epilog="Provide json formatted arguments on stdin, receive json formatted result on stdout (in case there are no exceptions).")
 
-parser.add_argument("operation",       help="operation to execute on database", choices=["create", "append", "query"])
+parser.add_argument("operation",       help="operation to execute on database", choices=["create", "append", "query", "hack"])
 
 parser.add_argument("-i", "--input", help="take input as command line argument instead of stdin")
 
@@ -144,9 +144,27 @@ def op_query(db, json_args):
 		raise Exception("unknown query type: " + q_type)
 
 
+""" op:hack """
+def op_hack(db, json_args):
+	if type(json_args) != str:
+		raise Exception("unexpected input type, get listname here")
+	listname = json_args
+
+	tr = ldb.get_empty_TableRecord("exp_progs")
+	expr = ldb.QE_Bin(op=ldb.QE_Bop.EQ, arg1=ldb.QE_Ref(index=2, field="name"), arg2=ldb.QE_Const(value=listname))
+	trs  = db.get_tablerecords("exp_progs", [("exp_progs_lists_entries", 0), ("exp_progs_lists", 1)], expr)
+
+	fields = list(tr._fields)
+
+	rows = list(map(lambda m: list(map(lambda x: getattr(m, x), fields)), trs))
+	res = {"fields": fields, "rows": rows}
+
+	return res
+
 opdict = {"create"  : op_create,
           "append"  : op_append,
-          "query"   : op_query}
+          "query"   : op_query,
+          "hack"    : op_hack}
 
 # select operation accordingly
 logging.info(f"executing operation {operation}")
