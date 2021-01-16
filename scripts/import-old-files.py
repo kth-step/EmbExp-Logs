@@ -148,12 +148,16 @@ def store_holba_run(holbarun_id, meta):
 
 holbarun_ids_map = {}
 holbarun_l_idx_map = {}
+num_dot = 100
+i = 0
 for holbarun_id in holbaruns:
+	i = (i + 1) % num_dot
+	if i == 0:
+		print('.', end='', flush=True)
 	meta = get_holbarun(holbarun_id)
 	db_ids = store_holba_run(holbarun_id, meta)
 	holbarun_ids_map[holbarun_id] = db_ids
 	holbarun_l_idx_map[holbarun_id] = {"prog_l": 1, "exp_l": 1}
-	print('.', end='', flush=True)
 
 
 # import progs
@@ -206,7 +210,11 @@ def store_prog(prog_id, code, meta):
 	return prog_db.id
 
 prog_ids_map = {}
+i = 0
 for prog_id in progs:
+	i = (i + 1) % num_dot
+	if i == 0:
+		print('.', end='', flush=True)
 	res = get_prog(prog_id)
 	if res == None:
 		logging.warning("skipping prog: " ^ prog_id)
@@ -214,7 +222,6 @@ for prog_id in progs:
 	code,meta = res
 	db_id = store_prog(prog_id, code, meta)
 	prog_ids_map[prog_id] = db_id
-	print('.', end='', flush=True)
 
 
 # import exps
@@ -316,13 +323,16 @@ def store_exp(exp_data):
 
 	return exp_db.id
 
+i = 0
 for exp_id in exps:
+	i = (i + 1) % num_dot
+	if i == 0:
+		print('.', end='', flush=True)
 	res = get_exp(exp_id)
 	if res == None:
 		logging.warning("skipping exp: " + exp_id)
 		continue
 	db_id = store_exp(res)
-	print('.', end='', flush=True)
 
 print()
 print("=" * 60)
