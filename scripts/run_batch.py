@@ -81,10 +81,11 @@ exprun = exprun.ExpRun._create(db)
 # launch the runner script for each experiment in the list
 # ======================================
 logging.info(f"running all selected experiments")
-successful = True
-someSuccessful = False
+n_exp_runs = 0
+n_exp_runs_success = 0
 try:
 	for exp in exp_iter:
+		n_exp_runs += 1
 		# reload experiment for latest values
 		exp = experiment.Experiment(db, exp.get_exp_id())
 
@@ -92,27 +93,30 @@ try:
 		print(f"===>>> [r:{iter_round}, {(iter_idx/iter_size * 100):.2f}% of {iter_size}] {exp}")
 		try:
 			result_val = exp_runner.run_experiment(exp, progplat, board_type, conn_mode=args.conn_mode, exprun=exprun)
-			someSuccessful = True
+			n_exp_runs_success += 1
 			if result_val != True:
 				print(f"         - Interesting result: {result_val}")
 		except KeyboardInterrupt:
 			raise
 		except:
-			successful = False
 			logging.warning("- unsuccessful")
 except KeyboardInterrupt:
-	successful = False
+	print("-> script was cancelled by keyboard interrupt")
 
 print()
 print("="*40)
 print("="*40)
-if (someSuccessful):
+print(f"{n_exp_runs_success} of {n_exp_runs} attempted experiment runs gave a result")
+if (n_exp_runs_success > 0):
 	print(f"run_spec = {run_spec}")
 print("="*40)
+assert(n_exp_runs_success <= n_exp_runs)
+successful = n_exp_runs_success == n_exp_runs
 if successful:
-	print("ALL EXPERIMENTS COMPLETED")
+	print("ALL STARTED EXPERIMENT RUNS COMPLETED")
 else:
-	print("SOME EXPERIMENTS DID NOT COMPLETE")
+	print("SOME EXPERIMENT RUNS DID NOT COMPLETE")
+
 
 sys.exit(0 if successful else 1)
 
