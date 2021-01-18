@@ -34,6 +34,7 @@ logs_root = args.logs_root
 if arch_id == None:
 	arch_id = "arm8"
 
+db_name_suffix = "IMPORTOLD"
 time_str_for_db = exprun._gen_dotfree_time_str()
 
 def read_file(b, fn):
@@ -106,6 +107,11 @@ print("opening db...")
 print()
 db = ldb.LogsDB()
 db.connect()
+print("starting backup of db...")
+print()
+db.backup()
+print("done.")
+print()
 
 
 # import holba runs
@@ -130,14 +136,16 @@ def get_holbarun(holbarun_id):
 
 	return meta
 
-def store_holba_run(holbarun_id, meta):
+def store_holba_run(meta):
 	# make prog list, exp list
-	progs_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs_lists")._replace(name=f"IMPORTOLD.{holbarun_id}", description="import"))
-	exps_list  = db.add_tablerecord(ldb.get_empty_TableRecord("exp_exps_lists" )._replace(name=f"IMPORTOLD.{holbarun_id}", description="import"))
+	hol_new_id = f"{meta['time']}_{db_name_suffix}"
+	hollist_new_id = f"HOLBA.{hol_new_id}"
+	progs_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs_lists")._replace(name=hollist_new_id, description="imported from old files"))
+	exps_list  = db.add_tablerecord(ldb.get_empty_TableRecord("exp_exps_lists" )._replace(name=hollist_new_id, description="imported from old files"))
 	# add actual holbarun
 	holbarun   = db.add_tablerecord(ldb.TR_holba_runs(
 		id=None,
-		name=holbarun_id,
+		name=hol_new_id,
 		exp_progs_lists_id = progs_list.id,
 		exp_exps_lists_id = exps_list.id))
 	# add the metadata
@@ -155,7 +163,8 @@ for holbarun_id in holbaruns:
 	if i == 0:
 		print('.', end='', flush=True)
 	meta = get_holbarun(holbarun_id)
-	db_ids = store_holba_run(holbarun_id, meta)
+	meta["old_id"] = holbarun_id
+	db_ids = store_holba_run(meta)
 	holbarun_ids_map[holbarun_id] = db_ids
 	holbarun_l_idx_map[holbarun_id] = {"prog_l": 1, "exp_l": 1}
 
@@ -187,7 +196,7 @@ def get_prog(prog_id):
 	return (code,meta)
 
 # create list for adding progs to be imported
-progs_all_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs_lists")._replace(name=f"IMPORTOLD.{time_str_for_db}", description="collection for import from old files"))
+progs_all_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_progs_lists")._replace(name=f"IMPORTOLDSCRIPT.{time_str_for_db}_{db_name_suffix}", description="collection for all imported from old files"))
 progs_all_list_idx = [1]
 def store_prog(prog_id, code, meta):
 	assert(arch_id == "arm8")
@@ -244,7 +253,7 @@ def get_exp(exp_id):
 	dirs_in_dir = list(filter(lambda x: os.path.isdir(os.path.join(b, (x))), map(str, files_in_dir)))
 	files_in_dir = list(filter(lambda x: os.path.isfile(os.path.join(b, (x))), map(str, files_in_dir)))
 
-	with_train = False
+	with_train = True
 	needed_files = ["code.hash", "input1.json", "input2.json"]
 	if with_train:
 		needed_files = needed_files + ["train.json"]
@@ -270,7 +279,7 @@ def get_exp(exp_id):
 		input_data["input_train"] = input_train
 
 	meta = list(map(lambda x: ("log", x, read_file(b, x)), files_in_dir))
-	meta.append(("","experiment_hash",exp_hash))
+	meta.append(("experiment_hash","",exp_hash))
 
 	assert(all(map(lambda x: x.startswith("run."), dirs_in_dir)))
 	runs = []
@@ -287,7 +296,9 @@ def get_exp(exp_id):
 	return (codehash, exp_type, exp_params, json.dumps(input_data, separators=(',', ':')), meta, runs)
 
 # create list for adding all experiments
-exps_all_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_exps_lists")._replace(name=f"IMPORTOLD.{time_str_for_db}", description="collection for import from old files"))
+exps_all_list = db.add_tablerecord(ldb.get_empty_TableRecord("exp_exps_lists")._replace(name=f"IMPORTOLDSCRIPT.{time_str_for_db}_{db_name_suffix}", description="collection for all imported from old files"))
+# create collective exprun
+exprun_import = exprun.ExpRun._create(db, db_name_suffix)
 exps_all_list_idx = [1]
 def store_exp(exp_data):
 	(codehash, exp_type, exp_params, input_data, meta, runs) = exp_data
@@ -314,9 +325,10 @@ def store_exp(exp_data):
 				exp_l_list_idx = holbarun_l_idx_map[holbarun_id]["exp_l"]
 				db.add_tablerecord(ldb.TR_exp_exps_lists_entries(exp_exps_lists_id=exp_l_id, exp_exps_id=exp_db.id, list_index=exp_l_list_idx))
 				holbarun_l_idx_map[holbarun_id]["exp_l"] = exp_l_list_idx + 1
-	# add runs
+	# add runs (and just use a collective exprun for all runs)
 	for run in runs:
 		(run_name,run_data) = run
+		run_name += "." + exprun_import.get_name()
 		for k in run_data.keys():
 			tr_meta = ldb.TR_exp_exps_meta(exp_exps_id=exp_db.id, kind=k, name=run_name, value=run_data[k])
 			db.add_tablerecord(tr_meta)

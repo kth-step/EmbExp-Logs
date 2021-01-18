@@ -27,8 +27,9 @@ class ExpRun:
 
 	# create exp runs
 	# =========================================
-	def _create(db):
+	def _create(db, suffix = None):
 		name = _gen_dotfree_time_str()
+		name += ("_" + suffix) if suffix != None else ""
 		tr = ldb.TR_exp_runs(id=None, name=name)
 		db.add_tablerecord(tr)
 		return ExpRun(db, tr)
