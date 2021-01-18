@@ -17,10 +17,10 @@ import exp_runner
 
 # parse arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("listname",   help="listname")
-parser.add_argument("-bt", "--board_type", help="broad_type", choices=["rpi3", "rpi4"], default="rpi3")
+parser.add_argument("listname",             help="listname")
+parser.add_argument("-bt", "--board_type",  help="broad_type", choices=["rpi3", "rpi4"], default="rpi3")
 
-parser.add_argument("-fa", "--fix_all",    help="only fix experiments that don't have a complete run yet, repeatedly with polling", action="store_true")
+parser.add_argument(       "--run_once",    help="collect experiments in the beginning and run each experiment just once", action="store_true")
 
 parser.add_argument("-ep", "--embexp_path", help="see run_experiment.py.")
 parser.add_argument("-cm", "--conn_mode",   help="see run_experiment.py.", choices=["try", "run", "reset"])
@@ -36,7 +36,7 @@ else:
 
 listname   = args.listname
 board_type = args.board_type
-fix_all   = args.fix_all
+run_once   = args.run_once
 
 # create prog platform object
 progplat = progplatform.get_embexp_ProgPlatform(args.embexp_path)
@@ -58,22 +58,19 @@ def is_latest_exp_run_not_complete(exp):
 	run_data = exp.get_run_data(run_id)
 	return not experiment.Experiment.is_complete_run(run_data)
 
-def genfun():
+def is_all_true(x):
+	return True
+
+def genfun(filterfun):
 	exps = logslist.LogsList._get_by_name(db, "exp", listname).get_entries()
 	exps = map(lambda x: x[1], exps)
-	ffun = is_latest_exp_run_not_complete
-	# if not fix_all, we want to run once for each experiment
-	if not fix_all:
-		ffun = lambda x: True
-	return list(filter(ffun, exps))
+	return list(filter(filterfun, exps))
 
-genargs = {}
-
-# select iterator
-if fix_all:
-	exp_iter = exp_finder.PollingIterator(genfun, genargs)
-else:
-	exp_iter = exp_finder.NonPollingListIterator(genfun(**genargs))
+# select iterator (by default: poll the input experiment source for incomplete experiments)
+exp_iter = exp_finder.PollingIterator(genfun, {"filterfun": is_latest_exp_run_not_complete})
+# if "run_once", we take each experiment from the source into account (exactly once, no polling)
+if run_once:
+	exp_iter = exp_finder.NonPollingListIterator(genfun(**{"filterfun": is_all_true}))
 
 # create exp run in db
 exprun = exprun.ExpRun._create(db)
