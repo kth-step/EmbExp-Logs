@@ -139,9 +139,12 @@ def gen_input_code(statemap):
 	mem_key = 'mem'
 
 	if mem_key in statemap.keys():
-		for k in statemap[mem_key].keys():
-			memmap[int(k)] = statemap[mem_key][k]
-		del statemap[mem_key]
+		mem_map_in = statemap[mem_key]
+		new_statemap = dict(statemap)
+		del new_statemap[mem_key]
+		statemap = new_statemap
+		for k in mem_map_in.keys():
+			memmap[int(k)] = mem_map_in[k]
 
 	asm1 = gen_input_code_reg(statemap)
 	regsetter = asm1
