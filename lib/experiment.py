@@ -79,6 +79,12 @@ class Experiment:
 			self.prog = program.Program(self.db, self.get_prog_id())
 		return self.prog
 
+	# get all from db
+	# =========================================
+	def _get_all(db):
+		records = db.get_tablerecord_matches(ldb.get_empty_TableRecord(f"exp_exps"))
+		return list(map(lambda x: Experiment(db, x), records))
+
 	# experiment run management (run)
 	# =========================================
 	def get_metadata(self):
