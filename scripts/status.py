@@ -74,10 +74,10 @@ if args.print_structures:
 		print(f"- '{hbar.get_name()}'")
 	print("experiment lists: ")
 	for el in logslist.LogsList._get_all(db, "exp"):
-		print(f"- '{el.get_name()}' ({el.get_description()})")
+		print(f"- '{el.get_name()}' (cnt={len(el.get_entry_ids())}, '{el.get_description()}')")
 	print("program lists: ")
 	for el in logslist.LogsList._get_all(db, "prog"):
-		print(f"- '{el.get_name()}' ({el.get_description()})")
+		print(f"- '{el.get_name()}' (cnt={len(el.get_entry_ids())}, '{el.get_description()}')")
 	print("exp runs: ")
 	for expr in exprun.ExpRun._get_all(db):
 		print(f"- '{expr.get_name()}'")
@@ -87,12 +87,14 @@ listname = args.listname
 exps = None
 if listname != None:
 	exps = logslist.LogsList._get_by_name(db, "exp", listname).get_entries()
-	print(f"found {len(exps)} entries in list {listname}")
+	exps = list(map(lambda exp: exp[1], exps))
+	print(f"found {len(exps)} experiments in list {listname}")
 else:
-	raise Exception("we always need to use a list currently")
+	exps = experiment.Experiment._get_all(db)
+	print(f"found {len(exps)} experiments in the database")
+	logging.warning("the output is for all experiments in the database!")
 
 # filter out the valid experiments
-exps = list(map(lambda exp: exp[1], exps))
 exps = list(filter(lambda exp: exp.is_valid_experiment(), exps))
 
 # collect all programs and experiments
