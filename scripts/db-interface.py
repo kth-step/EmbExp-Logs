@@ -14,7 +14,7 @@ import logsdb as ldb
 parser = argparse.ArgumentParser(description='Database interface with operation as argument and json formatted input and output.',
                                  epilog="Provide json formatted arguments on stdin, receive json formatted result on stdout (in case there are no exceptions).")
 
-parser.add_argument("operation",       help="operation to execute on database", choices=["create", "append", "query", "hack"])
+parser.add_argument("operation",       help="operation to execute on database", choices=["pipeline", "create", "append", "query", "hack"])
 
 parser.add_argument("-i", "--input", help="take input as command line argument instead of stdin")
 
@@ -33,14 +33,6 @@ else:
 operation = args.operation
 input_data = args.input
 is_testing = args.testing
-
-# parse operation arguments from stdin
-logging.info(f"parsing json arguments.")
-if input_data != None:
-	json_arguments = json.loads(input_data)
-else:
-	logging.info(f"from stdin...")
-	json_arguments = json.load(sys.stdin)
 
 # define executions for each operation type
 """ op:create """
@@ -161,18 +153,66 @@ def op_hack(db, json_args):
 
 	return res
 
-opdict = {"create"  : op_create,
-          "append"  : op_append,
-          "query"   : op_query,
-          "hack"    : op_hack}
+opdict = {
+	"create"  : op_create,
+	"append"  : op_append,
+	"query"   : op_query,
+	"hack"    : op_hack
+}
+
+# define pipeline operation
+""" op:pipeline """
+def op_pipeline(db):
+	while (True):
+		# read a line (number of characters for the following json message)
+		i_str = sys.stdin.readline()
+		# pipeline may end here
+		if i_str == "":
+			return None
+		i = int(i_str)
+		# read number of characters json message
+		json_str = sys.stdin.read(i)
+		json_msg = json.loads(json_str)
+		# retrieve op and data
+		op = json_msg["op"]
+		json_arguments = json_msg["data"]
+		# process the operation
+		opfun = opdict[op]
+		ret_val = opfun(db, json_arguments)
+		# encode and send the return value
+		ret_msg = json.dumps(ret_val)
+		sys.stdout.write(str(len(ret_msg)))
+		sys.stdout.write(ret_msg)
+		sys.stdout.flush()
+	assert(False)
+
+# start the actual processing
+
+# select db file
+db_file = None if not is_testing else "data/testing.db"
+
+# start execution of operation (mode)
+logging.info(f"executing operation {operation}")
+
+# special handling for pipeline operation
+if operation == "pipeline":
+	with ldb.LogsDB(db_file) as db:
+		op_pipeline(db)
+	exit(0)
+
+# parse operation arguments from stdin
+logging.info(f"parsing json arguments.")
+if input_data != None:
+	json_arguments = json.loads(input_data)
+else:
+	logging.info(f"from stdin...")
+	json_arguments = json.load(sys.stdin)
 
 # select operation accordingly
-logging.info(f"executing operation {operation}")
 opfun = opdict[operation]
 
 # create db access object
-alt_db_file = None if not is_testing else "data/testing.db"
-with ldb.LogsDB(alt_db_file) as db:
+with ldb.LogsDB(db_file) as db:
 	# execute operation
 	ret_val = opfun(db, json_arguments)
 

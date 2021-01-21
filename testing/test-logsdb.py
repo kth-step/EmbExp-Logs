@@ -246,6 +246,56 @@ def run_db_interface_py(c,i,str_in_output=None):
 
 ret_failure = (False, None)
 
+def run_db_interface_py_pipeline_create():
+	from subprocess import Popen, PIPE, STDOUT
+	p = Popen(["./scripts/db-interface.py", "-t", "pipeline"], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+	return p
+
+def run_db_interface_py_pipeline_term(p):
+	data_out, data_err = p.communicate(input=b'')
+	assert(data_err == None)
+	assert(data_out == b'')
+
+	try:
+		p.wait(timeout=5)
+	except:
+		p.kill()
+	assert(p.returncode != None)
+
+	success = p.returncode == 0
+
+	return success
+
+def run_db_interface_py_pipeline(p, c, i, str_in_output=None):
+	import json
+
+	# provide input
+	msg_str = json.dumps(i)
+	msg_len_str_line = f"{str(len(msg_str))}\n"
+	p.stdin.write(input=msg_len_str_line.encode("utf-8"))
+	p.stdin.write(input=msg_str.encode("utf-8"))
+	p.stdin.flush()
+
+	# wait for, and get the output
+	msg_rec_len = int(p.stdin.readline())
+	
+	data_out =
+	data = data_out.decode("utf-8")
+
+	success = p.returncode == 0
+	res     = None
+
+	if str_in_output != None:
+		if not str_in_output in data:
+			raise Exception("expected output not found: " + str_in_output)
+
+	if success:
+		#print(i)
+		#print(data)
+		res = json.loads(data)
+	else:
+		print(data)
+
 
 # create a few entries
 # ======================================================================================================================
