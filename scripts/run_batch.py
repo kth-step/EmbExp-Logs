@@ -6,6 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../lib"))
 
 import argparse
 import logging
+import time
 
 import logsdb as ldb
 import exprun
@@ -103,8 +104,12 @@ exprun = exprun.ExpRun._create(db)
 logging.info(f"running all selected experiments")
 n_exp_runs = 0
 n_exp_runs_success = 0
+all_start_time = time.time()
 try:
 	for exp in exp_iter:
+		start_time = time.time()
+		def print_runtime():
+			print(f"         - took {time.time()-start_time:.2f}s")
 		n_exp_runs += 1
 		# reload experiment for latest values
 		exp = experiment.Experiment(db, exp.get_exp_id())
@@ -113,12 +118,14 @@ try:
 		print(f"===>>> [r:{iter_round}, {(iter_idx/iter_size * 100):.2f}% of {iter_size}] {exp}")
 		try:
 			result_val = exp_runner.run_experiment(exp, progplat, board_type, conn_mode=args.conn_mode, exprun=exprun)
+			print_runtime()
 			n_exp_runs_success += 1
 			if result_val != True:
 				print(f"         - Interesting result: {result_val}")
 		except KeyboardInterrupt:
 			raise
 		except:
+			print_runtime()
 			logging.warning("- unsuccessful")
 except KeyboardInterrupt:
 	print("-> script was cancelled by keyboard interrupt")
@@ -126,7 +133,11 @@ except KeyboardInterrupt:
 print()
 print("="*40)
 print("="*40)
+all_time = time.time()-all_start_time
+print(f"ran for {all_time:.2f}s")
 print(f"{n_exp_runs_success} of {n_exp_runs} attempted experiment runs gave a result")
+if (n_exp_runs > 0):
+	print(f"average execution time {all_time/n_exp_runs:.2f}s")
 if (n_exp_runs_success > 0):
 	print(f"run_spec = {run_spec}")
 print("="*40)
