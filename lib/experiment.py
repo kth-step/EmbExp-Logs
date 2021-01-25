@@ -188,6 +188,7 @@ class Experiment:
 		input1   = self.get_input_state("input_1")
 		if self.get_exp_type() == "exps2":
 			input2   = self.get_input_state("input_2")
+		input_train   = self.get_input_state("input_train")
 
 		# printout
 		print(f"prog_id = {prog_id}")
@@ -195,11 +196,16 @@ class Experiment:
 		print("="*20)
 		print(code_asm)
 		print("="*20)
-		print("="*20)
+		print("="*10 + "input_1" + "="*10)
 		print(helpers.gen_readable(input1))
 		print("="*20)
 		if self.get_exp_type() == "exps2":
+			print("="*10 + "input_2" + "="*10)
 			print(helpers.gen_readable(input2))
+			print("="*20)
+		if input_train != None:
+			print("="*10 + "input_train" + "="*10)
+			print(helpers.gen_readable(input_train))
 			print("="*20)
 
 	# equality and string representation
