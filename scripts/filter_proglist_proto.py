@@ -9,11 +9,11 @@ import logging
 
 import logsdb as ldb
 import logslist
-import experiment
 
 # parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("listname", help="name of program list to filter")
+
 parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
 args = parser.parse_args()
 
