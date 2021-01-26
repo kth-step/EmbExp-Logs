@@ -140,8 +140,6 @@ class ProgPlatform:
 		self.write_experiment_file("asm.h", code_asm)
 		if train != None:
 			self.write_experiment_file("asm_train.h", gen_input_code(train))
-		else: # TODO: this is a quickfix until embexp_progplatform is fixed
-			self.write_experiment_file("asm_train.h", gen_input_code(input1))
 		self.write_experiment_file("asm_setup1.h", gen_input_code(input1))
 		if exp_type == "exps2":
 			self.write_experiment_file("asm_setup2.h", gen_input_code(input2))
