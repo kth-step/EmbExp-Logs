@@ -6,10 +6,6 @@ import subprocess
 
 # helpers
 # ======================================
-logs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-def get_logs_path(path):
-	return os.path.join(logs_path, path)
-
 def call_cmd_get_output(cmdl, error_msg, show_error = True):
 	error_file = None
 	if not show_error:
@@ -31,33 +27,6 @@ def call_cmd(cmdl, error_msg, show_output = True, show_error = True):
 	res = subprocess.call(cmdl, stdout=output_file, stderr=error_file)
 	if res != 0:
 		raise Exception(f"command {cmdl} not successful: {res} : {error_msg}")
-
-def comparefile(filename, content, printifdifferent = False):
-	if not os.path.exists(filename):
-		return True
-
-	with open(filename, "rb") as f:
-		file_content = f.read()
-	result = file_content == content
-
-	if not result:
-		sys.stderr.write("=" * 40 + "\n")
-		sys.stderr.write(f"file doesn't match: {filename}\n")
-		sys.stderr.write("=" * 40 + "\n")
-		sys.stderr.write(content.decode("utf-8", errors="ignore"))
-		sys.stderr.write("\n")
-		sys.stderr.write("=" * 40 + "\n")
-		sys.stderr.flush()
-
-	return result
-
-def writefile_or_compare(forcenew, filename, content, errmsg):
-	if forcenew or not os.path.exists(filename):
-		with open(filename, "wb+") as f:
-			f.write(content)
-			return
-	if not comparefile(filename, content, True):
-		raise Exception(f"file {filename} has unexpected content: {errmsg}")
 
 def gen_input_code_reg(regmap, printcomments=True):
 	asm = ""
@@ -167,9 +136,15 @@ def gen_input_code_mem(memmap):
 def gen_input_code(statemap):
 	memmap={}
 
-	for k in statemap['mem'].keys():
-		memmap[int(k)] = statemap['mem'][k]
-	del statemap['mem']
+	mem_key = 'mem'
+
+	if mem_key in statemap.keys():
+		mem_map_in = statemap[mem_key]
+		new_statemap = dict(statemap)
+		del new_statemap[mem_key]
+		statemap = new_statemap
+		for k in mem_map_in.keys():
+			memmap[int(k)] = mem_map_in[k]
 
 	asm1 = gen_input_code_reg(statemap)
 	regsetter = asm1
