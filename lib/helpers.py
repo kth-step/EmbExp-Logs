@@ -144,6 +144,8 @@ def gen_input_code(statemap):
 		del new_statemap[mem_key]
 		statemap = new_statemap
 		for k in mem_map_in.keys():
+			if k == "default":
+				continue
 			memmap[int(k)] = mem_map_in[k]
 
 	asm1 = gen_input_code_reg(statemap)
@@ -164,9 +166,12 @@ def gen_readable(statemap):
 		if isinstance(val,dict):
 			print("MEM = {")
 			for addr_s in val:
-				v = val[addr_s].to_bytes(1, byteorder='big').hex()
-				a = int(addr_s).to_bytes(8, byteorder='big').hex()
-				print(f"\t0x{a} => 0x{v}")
+				v = "0x" + val[addr_s].to_bytes(1, byteorder='big').hex()
+				if addr_s == "default":
+					a = addr_s
+				else:
+					a = "0x" + int(addr_s).to_bytes(8, byteorder='big').hex()
+				print(f"\t{a} => {v}")
 			print("}")
 			continue
 

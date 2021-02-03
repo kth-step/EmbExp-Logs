@@ -140,9 +140,15 @@ class ProgPlatform:
 		self.write_experiment_file("asm.h", code_asm)
 		if train != None:
 			self.write_experiment_file("asm_setup_train.h", gen_input_code(train))
+			if train["mem"]["default"] != 0:
+				raise Exception("cannot handle memory with default value different from 0 currently")
 		self.write_experiment_file("asm_setup_1.h", gen_input_code(input1))
+		if input1["mem"]["default"] != 0:
+			raise Exception("cannot handle memory with default value different from 0 currently")
 		if exp_type == "exps2":
 			self.write_experiment_file("asm_setup_2.h", gen_input_code(input2))
+			if input2["mem"]["default"] != 0:
+				raise Exception("cannot handle memory with default value different from 0 currently")
 
 
 	def run_experiment(self, conn_mode = None):

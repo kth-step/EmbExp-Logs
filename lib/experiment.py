@@ -53,7 +53,8 @@ class Experiment:
 			d_ = {}
 			for k in d:
 				v = d[k]
-				k = (int(k, 16) if type(k) == str else k) if convkey else k
+				if convkey and k != "default":
+					k = (int(k, 16) if type(k) == str else k)
 				if isinstance(v, dict):
 					v_ = value_parse_rec(v, True)
 				else:
