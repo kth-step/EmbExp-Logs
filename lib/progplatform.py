@@ -124,6 +124,10 @@ class ProgPlatform:
 			input2   = exp.get_input_state("input_2")
 			assert input2 != None
 
+		defmem_train = None if train == None else (train["mem"]["default"])
+		defmem_1     = None if input1 == None else (input1["mem"]["default"])
+		defmem_2     = None if input2 == None else (input2["mem"]["default"])
+
 		config_text = ""
 		config_text += f"PROGPLAT_ARCH         ={exp.get_prog().get_arch()}\n"
 		config_text += f"PROGPLAT_TYPE         ={exp_type}\n"
@@ -134,21 +138,19 @@ class ProgPlatform:
 		elif exp_type == "exps1":
 			config_text += f"PROGPLAT_RUN_TIMEOUT  =80\n"
 		config_text += f"__PROGPLAT_MUL_RUNS__ ={num_mul_runs}\n"
+		config_text += "" if defmem_train == None else f"__PROGPLAT_MEM_DEF_TRAIN__  =expmem_byte_to_word({defmem_train})\n"
+		config_text += "" if defmem_1 == None     else f"__PROGPLAT_MEM_DEF_1__  =expmem_byte_to_word({defmem_1})\n"
+		config_text += "" if defmem_2 == None     else f"__PROGPLAT_MEM_DEF_2__  =expmem_byte_to_word({defmem_2})\n"
+
 		with open(os.path.join(self.progplat_path, f"Makefile.config"), "w+") as f:
 			f.write(config_text)
 
 		self.write_experiment_file("asm.h", code_asm)
 		if train != None:
 			self.write_experiment_file("asm_setup_train.h", gen_input_code(train))
-			if train["mem"]["default"] != 0:
-				raise Exception("cannot handle memory with default value different from 0 currently")
 		self.write_experiment_file("asm_setup_1.h", gen_input_code(input1))
-		if input1["mem"]["default"] != 0:
-			raise Exception("cannot handle memory with default value different from 0 currently")
 		if exp_type == "exps2":
 			self.write_experiment_file("asm_setup_2.h", gen_input_code(input2))
-			if input2["mem"]["default"] != 0:
-				raise Exception("cannot handle memory with default value different from 0 currently")
 
 
 	def run_experiment(self, conn_mode = None):
