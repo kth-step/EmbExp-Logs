@@ -43,10 +43,20 @@ with ldb.LogsDB(alt_db_file, read_only=True) as db:
 	# execute query
 	(fields, rows) = db.get_tablerecords_sql(sql_str)
 
+def simple_print(fields, rows):
+	print(fields)
+	print("=" * 40)
+	print()
+	for row in rows:
+		print(row)
+
+def print_with_pandas(fields, rows):
+	import pandas as pd
+
+	df = pd.DataFrame (rows, columns=fields)
+
+	print(df)
+
 # print result
-print(fields)
-print("=" * 40)
-print()
-for row in rows:
-	print(row)
+print_with_pandas(fields, rows)
 
