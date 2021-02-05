@@ -141,6 +141,31 @@ def op_query(db, json_args):
 
 	# b) join-based query
 	elif q_type == "join_based":
+		# input check
+		if not type(q) is dict:
+			raise Exception("wrong input, must be a dictionary")
+		if any(map(lambda x: not x in ["table", "joins", "query_exp", "order_by", "id_only"], q.keys())):
+			raise Exception("unknown parameter in input ('query')")
+		# fetching arguments
+		table = q["table"]
+		joins = q["joins"]
+		query_exp = q["query_exp"]
+		order_by = []
+		try:
+			order_by = q["order_by"]
+		except KeyError:
+			pass
+		id_only = False
+		try:
+			id_only = q["id_only"]
+		except KeyError:
+			pass
+
+		if not type(values) is dict:
+			raise Exception("wrong input, 'values' of 'query' must be a dictionary")
+		# processing of arguments
+		raise Exception("not implemented")
+		# execute query and return results
 		raise Exception("not implemented")
 
 	# c) raw sql query
