@@ -565,6 +565,7 @@ class LogsDB:
 	# raw sql query
 	def get_tablerecords_sql(self, sql, table = None):
 		# - for most complex queries
+		# - !users need to be very careful to not confuse ids to not mess up the database!
 		# - very generic
 		# - is only allowed when database is in read-only mode
 		# if table name is provided, table record values are created from resulting rows
