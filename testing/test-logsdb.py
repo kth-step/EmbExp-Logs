@@ -285,13 +285,13 @@ input_ro_q_p_ret = run_db_interface_py("query", input_ro_q_p, read_only=True)
 input_ro_q_p_expect = (True, {'fields': ['id', 'kind', 'name', 'value'], 'rows': [[0, 'logsdb', 'version', '1']]})
 assert(input_ro_q_p_ret == input_ro_q_p_expect)
 
-# query something with tablename
+# query something with all columns
 input_ro_q_1  = {"type": "sql",
-                 "query": {"sql": "select * from db_meta where id = 0", "table": "db_meta"}}
+                 "query": {"sql": "select * from db_meta where id = 0"}}
 input_ro_q_1_ret = run_db_interface_py("query", input_ro_q_1, read_only=True)
 input_ro_q_1_expect = (True, {'fields': ['id', 'kind', 'name', 'value'], 'rows': [[0, 'logsdb', 'version', '1']]})
 assert(input_ro_q_1_ret == input_ro_q_1_expect)
-# query something without tablename
+# query something with one column only
 input_ro_q_2  = {"type": "sql",
                  "query": {"sql": "select kind from db_meta where id = 0"}}
 input_ro_q_2_ret = run_db_interface_py("query", input_ro_q_2, read_only=True)

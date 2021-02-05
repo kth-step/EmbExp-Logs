@@ -148,27 +148,13 @@ def op_query(db, json_args):
 		# input check
 		if not type(q) is dict:
 			raise Exception("wrong input, must be a dictionary")
-		if any(map(lambda x: not x in ["sql", "table"], q.keys())):
+		if any(map(lambda x: not x in ["sql"], q.keys())):
 			raise Exception("unknown parameter in input ('query')")
 		# fetching arguments
 		sql = q["sql"]
-		table = None
-		try:
-			table = q["table"]
-		except KeyError:
-			pass
 		# execute sql query and return results
-		res = db.get_tablerecords_sql(sql, table=table)
-		if table != None:
-			if len(res) == 0:
-				return res
-			fields = list(res[0]._fields)
-			rows = list(map(lambda m: list(map(lambda x: getattr(m, x), fields)), res))
-			res = {"fields": fields, "rows": rows}
-		else:
-			(fields, rows) = res
-			res = {"fields": fields, "rows": rows}
-		return res
+		(fields, rows) = db.get_tablerecords_sql(sql)
+		return {"fields": fields, "rows": rows}
 
 	# d) unknown query type
 	else:
