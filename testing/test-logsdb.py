@@ -201,6 +201,23 @@ def initial_db_tests(db):
 	print("=" * 40)
 	print(db.to_string(True))
 
+def initial_readonly_db_tests(db):
+	# readonly mode doesn't allow creation of rows
+	ensure_failing(db.add_tablerecord, ldb.TR_db_meta(id=None, kind="arbitraryfreshvalue", name='anotherfresh123', value='111'))
+	# but it allows standard query functions
+	_db_meta_ver_1 = db.get_tablerecord_matches(ldb.get_empty_TableRecord("db_meta")._replace(id=0))
+	assert(_db_meta_ver_1 == [ldb.TR_db_meta(id=0, kind='logsdb', name='version', value='1')])
+
+	print("=" * 40)
+	print(db.to_string(True))
+
+	# query something with tablename
+	_db_meta_ver_2 = db.get_tablerecords_sql("select * from db_meta where id = 0", "db_meta")
+	assert(_db_meta_ver_2 == _db_meta_ver_1)
+	# query something without tablename
+	_db_meta_ver_3 = db.get_tablerecords_sql("select kind from db_meta where id = 0")
+	assert(_db_meta_ver_3 == (['kind'], [['logsdb']]))
+
 
 # start with testing procedure
 # ======================================================================================================================
@@ -213,13 +230,16 @@ if os.path.isfile(db_file):
 # run initial tests on logsdb library (initializes db into defined state)
 with ldb.LogsDB(db_file) as db:
 	initial_db_tests(db)
+# run initial readonly tests (raw sql query)
+with ldb.LogsDB(db_file, read_only=True) as db:
+	initial_readonly_db_tests(db)
 
 # helper to check calls to db-interface.py
 # ======================================================================================================================
-def run_db_interface_py(c,i,str_in_output=None):
+def run_db_interface_py(c,i,str_in_output=None,read_only=False):
 	from subprocess import Popen, PIPE, STDOUT
 	import json
-	p = Popen(["./scripts/db-interface.py", "-t", c], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+	p = Popen(["./scripts/db-interface.py", "-t", c] + (["-ro"] if read_only else []), stdout=PIPE, stdin=PIPE, stderr=STDOUT)
 	data_out, data_err = p.communicate(input=json.dumps(i).encode("utf-8"))
 	assert(data_err == None)
 	data = data_out.decode("utf-8")
@@ -245,6 +265,38 @@ def run_db_interface_py(c,i,str_in_output=None):
 	return (success, res)
 
 ret_failure = (False, None)
+
+
+# try readonly interface and raw sql queries
+# ======================================================================================================================
+# readonly mode doesn't allow creation of rows
+input_ro_q_f  = {"table": "db_meta",
+                 "values": {"kind": "arbitraryfreshvalue",
+                            "name": "anotherfresh123",
+                            "value": "111"}}
+input_ro_q_f_ret = run_db_interface_py("create", input_ro_q_f, "attempt to write a readonly database", read_only=True)
+input_ro_q_f_expect = (False, None)
+assert(input_ro_q_f_ret == input_ro_q_f_expect)
+# but it allows standard query functions
+input_ro_q_p  = {"type": "match_simple",
+                 "query": {"table": "db_meta",
+                           "values": {"id": 0}}}
+input_ro_q_p_ret = run_db_interface_py("query", input_ro_q_p, read_only=True)
+input_ro_q_p_expect = (True, {'fields': ['id', 'kind', 'name', 'value'], 'rows': [[0, 'logsdb', 'version', '1']]})
+assert(input_ro_q_p_ret == input_ro_q_p_expect)
+
+# query something with tablename
+input_ro_q_1  = {"type": "sql",
+                 "query": {"sql": "select * from db_meta where id = 0", "table": "db_meta"}}
+input_ro_q_1_ret = run_db_interface_py("query", input_ro_q_1, read_only=True)
+input_ro_q_1_expect = (True, {'fields': ['id', 'kind', 'name', 'value'], 'rows': [[0, 'logsdb', 'version', '1']]})
+assert(input_ro_q_1_ret == input_ro_q_1_expect)
+# query something without tablename
+input_ro_q_2  = {"type": "sql",
+                 "query": {"sql": "select kind from db_meta where id = 0"}}
+input_ro_q_2_ret = run_db_interface_py("query", input_ro_q_2, read_only=True)
+input_ro_q_2_expect = (True, {'fields': ['kind'], 'rows': [['logsdb']]})
+assert(input_ro_q_2_ret == input_ro_q_2_expect)
 
 
 # create a few entries

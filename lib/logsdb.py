@@ -562,13 +562,36 @@ class LogsDB:
 		except:
 			raise Exception("retrieving data failed")
 
-	# raw sql query, for most complex queries, very generic, is only allowed when database is in read-only mode
-	# if table name is provided, table record values are created
-	def get_tablerecords_sql(self, sql, t = None):
+	# raw sql query
+	def get_tablerecords_sql(self, sql, table = None):
+		# - for most complex queries
+		# - very generic
+		# - is only allowed when database is in read-only mode
+		# if table name is provided, table record values are created from resulting rows
+		# otherwise a pair of column names and rows, all as simple lists
 		if not self.read_only:
 			raise Exception("only allowed in read-only mode")
 
-		raise Exception("not implemented")
+		data_type = None if table == None else TR_by_table[table]
+
+		sql_str = sql
+		assert(type(sql_str) == str)
+
+		try:
+			with self.con:
+				cur = self.con.cursor()
+				cur.execute(sql_str)
+				if data_type != None:
+					cur.row_factory = row_factory_simple(data_type._make)
+					return list(cur.fetchall())
+				else:
+					cur.row_factory = sl.Row
+					rows = cur.fetchall()
+					colnames = [d[0] for d in cur.description]
+					rowsprocd = [list(r) for r in rows]
+					return (colnames, rowsprocd)
+		except:
+			raise Exception("retrieving data failed")
 
 	def to_string(self, with_entries = False):
 		res = []

@@ -19,6 +19,7 @@ parser.add_argument("operation",       help="operation to execute on database", 
 parser.add_argument("-i", "--input", help="take input as command line argument instead of stdin")
 
 parser.add_argument("-t", "--testing", help="uses testing database (i.e. for testing only)", action="store_true")
+parser.add_argument("-ro", "--read_only", help="opens database in read-only mode", action="store_true")
 
 parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
 
@@ -33,6 +34,7 @@ else:
 operation = args.operation
 input_data = args.input
 is_testing = args.testing
+is_read_only = True if args.read_only else False
 
 # parse operation arguments from stdin
 logging.info(f"parsing json arguments.")
@@ -136,10 +138,39 @@ def op_query(db, json_args):
 		rows = list(map(lambda m: list(map(lambda x: getattr(m, x), fields)), matches))
 		res = {"fields": fields, "rows": rows}
 		return res
+
 	# b) join-based query
 	elif q_type == "join_based":
 		raise Exception("not implemented")
-	# c) unknown query type
+
+	# c) raw sql query
+	elif q_type == "sql":
+		# input check
+		if not type(q) is dict:
+			raise Exception("wrong input, must be a dictionary")
+		if any(map(lambda x: not x in ["sql", "table"], q.keys())):
+			raise Exception("unknown parameter in input ('query')")
+		# fetching arguments
+		sql = q["sql"]
+		table = None
+		try:
+			table = q["table"]
+		except KeyError:
+			pass
+		# execute sql query and return results
+		res = db.get_tablerecords_sql(sql, table=table)
+		if table != None:
+			if len(res) == 0:
+				return res
+			fields = list(res[0]._fields)
+			rows = list(map(lambda m: list(map(lambda x: getattr(m, x), fields)), res))
+			res = {"fields": fields, "rows": rows}
+		else:
+			(fields, rows) = res
+			res = {"fields": fields, "rows": rows}
+		return res
+
+	# d) unknown query type
 	else:
 		raise Exception("unknown query type: " + q_type)
 
@@ -172,7 +203,7 @@ opfun = opdict[operation]
 
 # create db access object
 alt_db_file = None if not is_testing else "data/testing.db"
-with ldb.LogsDB(alt_db_file) as db:
+with ldb.LogsDB(alt_db_file, read_only=is_read_only) as db:
 	# execute operation
 	ret_val = opfun(db, json_arguments)
 
