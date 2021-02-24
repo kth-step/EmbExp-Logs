@@ -123,6 +123,8 @@ class ProgPlatform:
 		if exp_type == "exps2":
 			input2   = exp.get_input_state("input_2")
 			assert input2 != None
+		else:
+			input2 = None
 
 		defmem_train = None if train == None else (train["mem"]["default"])
 		defmem_1     = None if input1 == None else (input1["mem"]["default"])
