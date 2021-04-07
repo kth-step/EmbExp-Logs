@@ -105,7 +105,7 @@ logging.info(f"running all selected experiments")
 n_exp_runs = 0
 n_exp_runs_success = 0
 all_start_time = time.time()
-time_of_first_nontrue_result = None
+time_of_first_false_result = None
 try:
 	for exp in exp_iter:
 		start_time = time.time()
@@ -123,9 +123,10 @@ try:
 			n_exp_runs_success += 1
 			if result_val != True:
 				print(f"         - Interesting result: {result_val}")
-				if time_of_first_nontrue_result == None:
-					time_of_first_nontrue_result = time.time()
-					print(f"         - first nontrue result")
+			if result_val == False:
+				if time_of_first_false_result == None:
+					time_of_first_false_result = time.time()
+					print(f"         - first false result")
 		except KeyboardInterrupt:
 			raise
 		except:
@@ -139,9 +140,9 @@ print("="*40)
 print("="*40)
 all_time = time.time()-all_start_time
 print(f"ran for {all_time:.2f}s")
-if time_of_first_nontrue_result != None:
-	time_of_first_nontrue = time_of_first_nontrue_result-all_start_time
-	print(f"time until first nontrue (should mean counterexample) is {time_of_first_nontrue:.2f}s")
+if time_of_first_false_result != None:
+	time_of_first_false = time_of_first_false_result-all_start_time
+	print(f"time until first counterexample (false result) is {time_of_first_false:.2f}s")
 print(f"{n_exp_runs_success} of {n_exp_runs} attempted experiment runs gave a result")
 if (n_exp_runs > 0):
 	print(f"average execution time {all_time/n_exp_runs:.2f}s")
