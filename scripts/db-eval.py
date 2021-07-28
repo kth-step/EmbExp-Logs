@@ -128,10 +128,13 @@ where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and e_m.v
 f"""
 -- find number of experiments where running them results in inclcusive
 -- ================================================
-select count(*)
+select count(*) from
+(
+select distinct e_l_e.exp_exps_id as exp_id
 from exp_exps_lists_entries as e_l_e
 inner join exp_exps_meta as e_m on e_m.exp_exps_id = e_l_e.exp_exps_id
 where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and e_m.value like "%embexp.board.exception%"
+)
 """)
   numexpsasexception = res[1][0][0]
 
@@ -196,5 +199,4 @@ where r_m.kind = "args"
 
 with ldb.LogsDB(dbfile_src, read_only=True) as db:
   iterate_holba_runs(db)
-
 
