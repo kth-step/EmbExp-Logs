@@ -37,8 +37,9 @@ select value
 from holba_runs_meta as r_m
 where r_m.holba_runs_id = "{holba_run_id}" and r_m.kind = "log"
 """)
-  gen_run_time = None if res[1] == [] else res[1][0][0]
-  print(f"log with run time = {gen_run_time}")
+  log_text = None if res[1] == [] else res[1][0][0]
+  gen_run_time = None if log_text == None else log_text[log_text.find("Duration:"):]
+  print(f"logged scamv gen run time = {gen_run_time}")
 
 
 def print_experimentdata(db, exps_list_id):
@@ -56,7 +57,7 @@ from exp_exps as e
 inner join exp_exps_lists_entries as e_l_e on e_l_e.exp_exps_id = e.id
 inner join exp_exps_meta as e_m on e_m.exp_exps_id = e.id
 inner join exp_progs as p on p.id = e.exp_progs_id
-where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result"
+where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and (e_m.value = "true" or e_m.value = "false" or e_m.value like "%INCONCLUSIVE%")
 -- the ones that have a result from execution
 )
 """)
@@ -74,7 +75,7 @@ from exp_exps as e
 inner join exp_exps_lists_entries as e_l_e on e_l_e.exp_exps_id = e.id
 inner join exp_exps_meta as e_m on e_m.exp_exps_id = e.id
 inner join exp_progs as p on p.id = e.exp_progs_id
-where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and e_m.value = "false"
+where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and (e_m.value = "true" or e_m.value = "false" or e_m.value like "%INCONCLUSIVE%") and e_m.value = "false"
 -- the ones that have a result from execution, and the result is false / counterexample
 )
 """)
@@ -97,7 +98,7 @@ f"""
 select count(*)
 from exp_exps_lists_entries as e_l_e
 inner join exp_exps_meta as e_m on e_m.exp_exps_id = e_l_e.exp_exps_id
-where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result"
+where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and (e_m.value = "true" or e_m.value = "false" or e_m.value like "%INCONCLUSIVE%")
 """)
   numexpswithresult = res[1][0][0]
 
@@ -108,7 +109,7 @@ f"""
 select count(*)
 from exp_exps_lists_entries as e_l_e
 inner join exp_exps_meta as e_m on e_m.exp_exps_id = e_l_e.exp_exps_id
-where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and e_m.value = "false"
+where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and (e_m.value = "true" or e_m.value = "false" or e_m.value like "%INCONCLUSIVE%") and e_m.value = "false"
 """)
   numexpsascounterexamples = res[1][0][0]
 
@@ -116,12 +117,23 @@ where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and e_m.v
 f"""
 -- find number of experiments where running them results in inclcusive
 -- ================================================
-select e_m.value
+select count(*)
 from exp_exps_lists_entries as e_l_e
 inner join exp_exps_meta as e_m on e_m.exp_exps_id = e_l_e.exp_exps_id
-where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and e_m.value != "false" and e_m.value != "true"
+where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and e_m.value like "%INCONCLUSIVE%"
 """)
-  numexpsasinconclusive = len(list(filter(lambda x: "INCONCLUSIVE" in x[0], res[1])))#[0][0]
+  numexpsasinconclusive = res[1][0][0]
+
+  res = db.get_tablerecords_sql(
+f"""
+-- find number of experiments where running them results in inclcusive
+-- ================================================
+select count(*)
+from exp_exps_lists_entries as e_l_e
+inner join exp_exps_meta as e_m on e_m.exp_exps_id = e_l_e.exp_exps_id
+where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and e_m.value like "%embexp.board.exception%"
+""")
+  numexpsasexception = res[1][0][0]
 
   res = db.get_tablerecords_sql(
 f"""
@@ -150,6 +162,7 @@ order by e_l_e.list_index asc
   print(f"numexpswithresult = {numexpswithresult}")
   print(f"numexpsascounterexamples = {numexpsascounterexamples}")
   print(f"numexpsasinconclusive = {numexpsasinconclusive}")
+  print(f"numexpsasexception = {numexpsasexception}")
 
   print()
   print(f"firstcounterexample_id = {firstcounterexample_id}")
@@ -160,14 +173,16 @@ def iterate_holba_runs(db):
 """
 -- go through holba run parameters and find corresponding experiment list
 -- ================================================
-select r.name, r_m.value, r.exp_exps_lists_id, r.exp_progs_lists_id
+select r.id, r.name, r_m.value, r.exp_exps_lists_id, r.exp_progs_lists_id
 from holba_runs_meta as r_m
 inner join holba_runs as r on r.id = r_m.holba_runs_id
 where r_m.kind = "args"
 """)
-  for (holba_run_id, holba_run_args, exps_list_id, progs_list_id) in res[1]:
-    print((holba_run_id, exps_list_id, progs_list_id))
+  for (holba_run_id, holba_run_name, holba_run_args, exps_list_id, progs_list_id) in res[1]:
+    print(f"SCAM-V/HolBA run id: {holba_run_name}")
     print(50 * "=")
+    print(f"exps_list_id = {exps_list_id}")
+    print(f"progs_list_id = {progs_list_id}")
     print(f"scamv arguments = {holba_run_args}")
     print()
     print_gen_run_time(db, holba_run_id)
