@@ -47,6 +47,32 @@ def print_experimentdata(db, exps_list_id):
 
   res = db.get_tablerecords_sql(
 f"""
+select distinct e_m.name
+from exp_exps as e
+inner join exp_exps_lists_entries as e_l_e on e_l_e.exp_exps_id = e.id
+inner join exp_exps_meta as e_m on e_m.exp_exps_id = e.id
+where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result"
+""")
+  runspecs = list(map(lambda x: ".".join(x[0].split(".")[0:2]), res[1]))
+
+  res = db.get_tablerecords_sql(
+f"""
+-- find number of programs with experiments
+-- ================================================
+select count(*) from
+(
+-- program_ids of all experiments of a certain experiment list
+select distinct p.id
+from exp_exps as e
+inner join exp_exps_lists_entries as e_l_e on e_l_e.exp_exps_id = e.id
+inner join exp_progs as p on p.id = e.exp_progs_id
+where e_l_e.exp_exps_lists_id = {exps_list_id}
+)
+""")
+  numprogswithexps = res[1][0][0]
+
+  res = db.get_tablerecords_sql(
+f"""
 -- find number of programs with result
 -- ================================================
 select count(*) from
@@ -115,6 +141,17 @@ where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and (e_m.
 
   res = db.get_tablerecords_sql(
 f"""
+-- find number of experiments where running them results in examples
+-- ================================================
+select count(*)
+from exp_exps_lists_entries as e_l_e
+inner join exp_exps_meta as e_m on e_m.exp_exps_id = e_l_e.exp_exps_id
+where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and (e_m.value = "true" or e_m.value = "false" or e_m.value like "%INCONCLUSIVE%") and e_m.value = "true"
+""")
+  numexpsasexamples = res[1][0][0]
+
+  res = db.get_tablerecords_sql(
+f"""
 -- find number of experiments where running them results in inclcusive
 -- ================================================
 select count(*)
@@ -157,18 +194,23 @@ order by e_l_e.list_index asc
 #""")
 #   = res[1][0][0]
 
-  print(f"numprogswithresult = {numprogswithresult}")
-  print(f"numprogswithcounterexample = {numprogswithcounterexample}")
+  print(f"runspecs = {runspecs}")
 
   print()
-  print(f"numexps = {numexps}")
-  print(f"numexpswithresult = {numexpswithresult}")
-  print(f"numexpsascounterexamples = {numexpsascounterexamples}")
-  print(f"numexpsasinconclusive = {numexpsasinconclusive}")
-  print(f"numexpsasexception = {numexpsasexception}")
+  print(f"numprogs with exps           = {numprogswithexps}")
+  print(f"numprogs with result         = {numprogswithresult}")
+  print(f"numprogs with counterexample = {numprogswithcounterexample}")
 
   print()
-  print(f"firstcounterexample_id = {firstcounterexample_id}")
+  print(f"numexps                      = {numexps}")
+  print(f"numexps withresult           = {numexpswithresult}")
+  print(f"numexps asexamples           = {numexpsasexamples}")
+  print(f"numexps ascounterexamples    = {numexpsascounterexamples}")
+  print(f"numexps asinconclusive       = {numexpsasinconclusive}")
+  print(f"numexps asexception          = {numexpsasexception}")
+
+  print()
+  print(f"exps until first cexp gen    = {firstcounterexample_id}")
 
 
 def iterate_holba_runs(db):
@@ -186,6 +228,7 @@ where r_m.kind = "args"
     print(50 * "=")
     print(f"exps_list_id = {exps_list_id}")
     print(f"progs_list_id = {progs_list_id}")
+    print()
     print(f"scamv arguments = {holba_run_args}")
     print()
     print_gen_run_time(db, holba_run_id)
