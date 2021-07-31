@@ -224,12 +224,12 @@ inner join holba_runs as r on r.id = r_m.holba_runs_id
 where r_m.kind = "args"
 """)
   for (holba_run_id, holba_run_name, holba_run_args, exps_list_id, progs_list_id) in res[1]:
-    print(f"SCAM-V/HolBA run id: {holba_run_name}")
+    print(f"Scam-V/HolBA run id: {holba_run_name}")
     print(50 * "=")
     print(f"exps_list_id = {exps_list_id}")
     print(f"progs_list_id = {progs_list_id}")
     print()
-    print(f"scamv arguments = {holba_run_args}")
+    print(f"Scam-V arguments = {holba_run_args}")
     print()
     print_gen_run_time(db, holba_run_id)
     print()

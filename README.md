@@ -2,7 +2,7 @@
 This repository collects the scripts to insert, query and process `EmbExp` experiment data (input machine states, execution results and other meta data).
 
 The scripts to execute experiments utilize [`EmbExp-ProgPlatform`](https://github.com/kth-step/EmbExp-ProgPlatform).
-This repository is used by SCAM-V in [`HolBA`](https://github.com/kth-step/HolBA).
+This repository is used by Scam-V in [`HolBA`](https://github.com/kth-step/HolBA).
 The following picture visualizes the flow of data, where experiment inputs are first created in `HolBA` and stored in this repository.
 Then the scripts in this repository trigger experiment execution through `EmbExp-ProgPlatform` and `EmbExp-Box` to ultimately execute on a board.
 Finally, the outputs are handed back here, where they are stored in a separate database file.
@@ -16,7 +16,7 @@ The scripts assume a HolBA environment.
 
 The database organizes generated programs and experiment inputs in lists as well as the experiment generation runs and experiment execution runs.
 In this way, it is possible to generate sets of experiments, and then execute their experiments and evaluate the results individually.
-Such experiment sets can be created using SCAM-V from HolBA, where an experiment consists of a binary program and two inputs, and the result is the comparison of the cache states after executing the program from either input state.
+Such experiment sets can be created using Scam-V from HolBA, where an experiment consists of a binary program and two inputs, and the result is the comparison of the cache states after executing the program from either input state.
 
 
 ### Browsing through stored experiments
@@ -47,7 +47,7 @@ To inspect the concrete cache states after executing the program on each input o
 - `./scripts/run_experiment.py {example experiment id} -is input_1`,
 - `./scripts/run_experiment.py {example experiment id} -is input_2`, and possibly also
 - `./scripts/run_experiment.py {example experiment id} -is input_train`.
-When taking a closer look at a counterexample, we may see that one of the two inputs produces an additional cache line that could look like `line 1, tag: 00121000`, where the hardware attacker `cache_multiw_numinset` for example would see the different number of cache lines per cache set, which would be a reason to be a SCAM-V counterexample in this context.
+When taking a closer look at a counterexample, we may see that one of the two inputs produces an additional cache line that could look like `line 1, tag: 00121000`, where the hardware attacker `cache_multiw_numinset` for example would see the different number of cache lines per cache set, which would be a reason to be a Scam-V counterexample in this context.
 
 Notice that the hardware experiment environment `EmbExp-Box` sometimes experiences "hickups", which could be due to errors on the communication lines, interferences due to insufficient shielding or similar, currently unsolved, engineering problems.
 Therefore, it may be helpful to disconnect and reconnect to reset the board or to select another board when connecting to `EmbExp-Box`.
