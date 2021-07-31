@@ -36,7 +36,7 @@ Notice that the experiment id is in fact a column of the SQLite database table s
 Similarly, one can use direct database queries to evaluate the present tables.
 
 
-### Manually executing and inspecting single experiments
+### Executing and inspecting single experiments
 The scripts to run experiments on hardware, implicitly connect to a board but this implicit connection is slower as it reconnects for each experiment.
 It is therefore advisable to explicitly connect to a board using `EmbExp-Box` in a separate terminal.
 For this purpose, we first spawn a new terminal and change the driectory to `EmbExp-Box` (e.g., `HolBA_opt/embexp/EmbExp-Box`) and then run `./interface/remote.py rpi3` and wait until the connection is established.
@@ -54,7 +54,7 @@ Therefore, it may be helpful to disconnect and reconnect to reset the board or t
 Use `./interface/remote.py --help` to find out how to do this.
 
 
-### Manully executing batches of experiments
+### Executing batches of experiments
 With the command `./scripts/run_batch.py`, we can run all experiments in the database that have not been executed yet.
 This command runs until no new experiments have been added for a certain hard-coded amount of time.
 The whole process can take several minutes, hours or days depending on the size of the experiment set.
