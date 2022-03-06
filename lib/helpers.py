@@ -148,6 +148,16 @@ def gen_input_code(statemap):
 				continue
 			memmap[int(k)] = mem_map_in[k]
 
+	spsetter = ""
+	if "sp" in statemap:
+		spval = statemap["sp"]
+		spsetter += f"\n\t// prepare a temporary register to set stackpointer (0x{spval.to_bytes(8, byteorder='big').hex()})"
+		spsetter += gen_input_code_reg({"x0":spval}, False)
+		spsetter += "\n\t// set the stackpointer register and reset the temporary register to zero"
+		spsetter += "\n\tmov sp, x0"
+		spsetter += "\n\tmov x0, #0\n"
+	statemap.pop("sp", None)
+
 	asm1 = gen_input_code_reg(statemap)
 	regsetter = asm1
 
@@ -155,7 +165,7 @@ def gen_input_code(statemap):
 	asm3 = "\n\t// reset the temporary registers to zero\n\tmov x0, #0\n" + "\tmov x1, #0\n"
 	memorysetter = asm2 + asm3
 
-	filecontents = f"{memorysetter}\n\n{regsetter}\n"
+	filecontents = f"{memorysetter}\n\n{spsetter}\n\n{regsetter}\n"
 
 	return filecontents
 
