@@ -50,8 +50,8 @@ CREATE TABLE exp_runs_meta (
 CREATE TABLE exp_progs (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   arch TEXT NOT NULL,
-  code TEXT NOT NULL,
-  CONSTRAINT UC_exp_progs UNIQUE (arch, code)
+  binary TEXT NOT NULL,
+  CONSTRAINT UC_exp_progs UNIQUE (arch, binary)
 );
 -- metadata for exp_progs
 CREATE TABLE exp_progs_meta (
@@ -71,7 +71,9 @@ CREATE TABLE exp_exps (
   type TEXT NOT NULL,
   params TEXT NOT NULL,
   input_data TEXT NOT NULL,
-  CONSTRAINT UC_exp_exps UNIQUE (exp_progs_id, type, params, input_data),
+  entry INTEGER NOT NULL,
+  exits TEXT NOT NULL,
+  CONSTRAINT UC_exp_exps UNIQUE (exp_progs_id, type, params, input_data, entry, exits),
   CONSTRAINT FK_exp_progs FOREIGN KEY (exp_progs_id) REFERENCES exp_progs(id)
 );
 -- metadata for exp_exps

@@ -48,14 +48,14 @@ TR_exp_runs_meta = (
 
 TR_exp_progs = (
   collections.namedtuple("TR_exp_progs",
-  ["id", "arch", "code"]))
+  ["id", "arch", "binary"]))
 TR_exp_progs_meta = (
   collections.namedtuple("TR_exp_progs_meta",
   ["exp_progs_id", "kind", "name", "value"]))
 
 TR_exp_exps = (
   collections.namedtuple("TR_exp_exps",
-  ["id", "exp_progs_id", "type", "params", "input_data"]))
+  ["id", "exp_progs_id", "type", "params", "input_data", "entry", "exits"]))
 TR_exp_exps_meta = (
   collections.namedtuple("TR_exp_exps_meta",
   ["exp_exps_id", "kind", "name", "value"]))
