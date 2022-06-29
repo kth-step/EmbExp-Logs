@@ -1,6 +1,7 @@
 
 import logging
 import os
+import base64
 
 import experiment
 from helpers import *
@@ -107,6 +108,36 @@ class ProgPlatform:
 		with open(os.path.join(self.progplat_path, f"all/inc/experiment/{filename}"), "w+") as f:
 			f.write(contents)
 
+	def write_binary_file(self, filename, contents):
+		assert self._writable
+		with open(filename, "wb") as f:
+			f.write(base64.b64decode(contents))
+
+	def write_binary_entry_file(self, filename, entry):
+		binary_entry_text = ''
+		binary_entry_text += f'	b ({hex(entry)}-0x2000)\n'
+		binary_entry_text += f'	nop\n'
+		binary_entry_text += '\n'
+		with open(os.path.join(self.progplat_path, f"all/inc/experiment/{filename}"), "w") as f:
+			f.write(binary_entry_text)
+
+	def write_binary_exits_file(self, filename, exits):
+		binary_exits_text = ''
+		binary_exits_text += f'#ifndef BINPATCH_H\n'
+		binary_exits_text += f'#define BINPATCH_H\n'
+		binary_exits_text += '\n'
+		binary_exits_text += f'#include "binarypatcher.h"\n'
+		binary_exits_text += '\n'
+		binary_exits_text += 'void patch_binary() {\n'
+		for exit in exits:
+			binary_exits_text += f'  patch_arm8_br({hex(exit)}, 0x2004);\n'
+		binary_exits_text += '}\n'
+		binary_exits_text += '\n'
+		binary_exits_text += f'#endif // BINPATCH_H\n'
+		binary_exits_text += '\n'
+		with open(os.path.join(self.progplat_path, f"all/inc/experiment/{filename}"), "w") as f:
+			f.write(binary_exits_text)
+
 	def configure_experiment(self, board_type, exp, num_mul_runs = 10, run_input_state = None):
 		assert self._writable
 		exp_type = exp.get_exp_type()
@@ -116,7 +147,10 @@ class ProgPlatform:
 		self.board_type = board_type
 
 		logging.debug(f"reading input files")
-		code_asm = exp.get_prog().get_code()
+		binary   = exp.get_prog().get_binary()
+		binary_pathfilename = os.path.join(self.progplat_path, f"all/inc/experiment/asm")
+		entry    = exp.get_exp_entry()
+		exits    = exp.get_exp_exits()
 		train    = exp.get_input_state("input_train")
 		input1   = exp.get_input_state("input_1" if run_input_state == None else run_input_state)
 		assert input1 != None
@@ -143,11 +177,16 @@ class ProgPlatform:
 		config_text += "" if defmem_train == None else f"__PROGPLAT_MEM_DEF_TRAIN__  =expmem_byte_to_word({defmem_train})\n"
 		config_text += "" if defmem_1 == None     else f"__PROGPLAT_MEM_DEF_1__  =expmem_byte_to_word({defmem_1})\n"
 		config_text += "" if defmem_2 == None     else f"__PROGPLAT_MEM_DEF_2__  =expmem_byte_to_word({defmem_2})\n"
+		config_text += "" if binary == None       else f"PROGPLAT_LOAD_ELF     ={binary_pathfilename}\n"
 
 		with open(os.path.join(self.progplat_path, f"Makefile.config"), "w+") as f:
 			f.write(config_text)
 
-		self.write_experiment_file("asm.h", code_asm)
+		#self.write_experiment_file("asm.h", code_asm) # No longer in use
+		self.write_binary_file(binary_pathfilename, binary)
+		self.write_binary_entry_file("asm.h", entry)
+		if exits != None:
+			self.write_binary_exits_file("binpatch.h", exits)
 		if train != None:
 			self.write_experiment_file("asm_setup_train.h", gen_input_code(train))
 		self.write_experiment_file("asm_setup_1.h", gen_input_code(input1))

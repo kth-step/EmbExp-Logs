@@ -179,7 +179,7 @@ where e_l_e.exp_exps_lists_id = {exps_list_id} and e_m.kind = "result" and e_m.v
 f"""
 -- select counterexamples from a certain experiment list (ordered by experiment list id)
 -- ================================================
-select e_l_e.list_index, p.code, e.input_data
+select e_l_e.list_index, p.binary, e.input_data
 from exp_exps as e
 inner join exp_exps_lists_entries as e_l_e on e_l_e.exp_exps_id = e.id
 inner join exp_exps_meta as e_m on e_m.exp_exps_id = e.id

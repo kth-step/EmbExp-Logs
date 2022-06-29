@@ -1,5 +1,6 @@
 
 import logging
+import json
 
 import logsdb as ldb
 
@@ -14,14 +15,31 @@ class Program:
 		else:
 			self.prog = prog
 
+		self.metadata = None
+
 	def get_prog_id(self):
 		return self.prog.id
 
 	def get_arch(self):
 		return self.prog.arch
 
+	def get_binary(self):
+		return self.prog.binary
+
+	def get_metadata(self):
+		if self.metadata == None:
+			self.metadata = self.db.get_tablerecord_matches(ldb.get_empty_TableRecord("exp_progs_meta")._replace(exp_progs_id=self.get_prog_id()))
+		return self.metadata
+
 	def get_code(self):
-		return self.prog.code
+		code_metadata = filter(lambda x: x.kind == "code", self.get_metadata())
+		code_asm = list(map(lambda x: (x.value), code_metadata))
+		if code_asm == []:
+			code_asm = "code not available!"
+		else:
+			assert len(code_asm) == 1
+			code_asm = code_asm[0]
+		return code_asm
 
 	# equality and string representation
 	# =========================================

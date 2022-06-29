@@ -61,6 +61,17 @@ def gen_strb_src_reg(reg, val, printcomments=True):
 	asm += f"{asm_comment}\n{asm_val}\n"
 	return asm
 
+def exits_parse(exits_str):
+	if exits_str != "[]":
+		assert exits_str[0] == "[" and exits_str[-1] == "]"
+		exits_str = exits_str.replace("[", "")
+		exits_str = exits_str.replace("]", "")
+		exits_str = exits_str.split(",")
+		exits = [int(e) for e in exits_str]
+		return exits
+	else:
+		return None
+
 # helper for mem_parse
 def uncacheable(cacheable_addr):
     assert 0x80000000 < cacheable_addr < 2*(0x80000000)

@@ -30,6 +30,8 @@ class Experiment:
 		self.inputs = None
 		self.prog = None
 		self.metadata = None
+		self.entry = None
+		self.exits = None
 
 	def get_exp_id(self):
 		return self.exp.id
@@ -42,6 +44,12 @@ class Experiment:
 
 	def get_exp_params(self):
 		return self.exp.params
+
+	def get_exp_entry(self):
+		return self.exp.entry
+
+	def get_exp_exits(self):
+		return helpers.exits_parse(self.exp.exits)
 
 	def get_inputs(self):
 		if self.inputs == None:
