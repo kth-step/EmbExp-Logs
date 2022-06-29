@@ -1,6 +1,5 @@
 
 import logging
-import json
 
 import logsdb as ldb
 
