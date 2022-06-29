@@ -8,5 +8,5 @@ args = parser.parse_args()
 if args.binfilename:
     with open(args.binfilename, "rb") as f:
         data = base64.b64encode(f.read())
-    print(data)
+    print(data.decode("utf-8"))
 
