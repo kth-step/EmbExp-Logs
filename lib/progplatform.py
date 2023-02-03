@@ -29,6 +29,19 @@ def get_default_branch(board_type):
 	assert board_type == "rpi3" or board_type == "rpi4"
 	return "scamv_" + board_type
 
+def copy_to_temp_widx(progplat, idx):
+	#construct the directory name under temp
+	sourcedir = progplat.progplat_path
+	dirname = sourcedir + "/temp/inst_" + idx
+	#delete the directory if it is there
+	logging.debug(f"preparing {dirname}")
+	call_cmd(["rm", "-rf", dirname], f"couldn't remove target directory {dirname}", False, False)
+	call_cmd(["mkdir", "-p", dirname + "/temp"], f"couldn't create {dirname/temp}", False, False)
+	#copy everything except for the temp directory
+	logging.debug(f"copying from {sourcedir} to {dirname}")
+	call_cmd(["cp", "-n", "-r", sourcedir + "/*", dirname + "/"], f"couldn't copy source directory {sourcedir} to target directory {dirname}", False, False)
+	return ProgPlatform(dirname)
+
 class ProgPlatform:
 	def __init__(self, progplat_path):
 		self.progplat_path = embexp_path = os.path.abspath(progplat_path)

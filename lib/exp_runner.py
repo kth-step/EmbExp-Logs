@@ -6,10 +6,16 @@ import experiment
 import progplatform
 from helpers import *
 
-def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, exprun = None, run_input_state = None, embexp_inst_idx = None):
-	logging.info(f"{(exp, progplat, board_type, branchname, conn_mode, pre_cleanup, no_post_cleanup, printeval, ignoremismatch, exprun, run_input_state)}")
+def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, exprun = None, run_input_state = None, embexp_inst_idx = None, copy_to_temp = False):
+	logging.info(f"{(exp, progplat, board_type, branchname, conn_mode, pre_cleanup, no_post_cleanup, printeval, ignoremismatch, exprun, run_input_state, embexp_inst_idx, copy_to_temp)}")
 	if progplat == None:
 		progplat = progplatform.get_embexp_ProgPlatform(None)
+
+	# when working on copies, we expect that the instance indexes are controlled to be different
+	assert (not copy_to_temp) or (embexp_inst_idx != None)
+	# work on a copy if needed
+	if copy_to_temp:
+		progplat = progplatform.copy_to_temp_widx(progplat, embexp_inst_idx)
 
 	exp_arch = exp.get_prog().get_arch()
 
