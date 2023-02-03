@@ -44,7 +44,7 @@ def copy_to_temp_widx(progplat, idx):
 
 class ProgPlatform:
 	def __init__(self, progplat_path):
-		self.progplat_path = embexp_path = os.path.abspath(progplat_path)
+		self.progplat_path = os.path.abspath(progplat_path)
 		assert os.path.isdir(self.progplat_path)
 		logging.debug(f"using {self.progplat_path}")
 
