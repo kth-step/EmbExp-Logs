@@ -6,7 +6,7 @@ import experiment
 import progplatform
 from helpers import *
 
-def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, exprun = None, run_input_state = None):
+def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, exprun = None, run_input_state = None, embexp_inst_idx = None):
 	logging.info(f"{(exp, progplat, board_type, branchname, conn_mode, pre_cleanup, no_post_cleanup, printeval, ignoremismatch, exprun, run_input_state)}")
 	if progplat == None:
 		progplat = progplatform.get_embexp_ProgPlatform(None)
@@ -73,7 +73,7 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 			uartlogdata = uartlogdata_sim
 			print(uartlogdata)
 		else:
-			uartlogdata = progplat.run_experiment(conn_mode)
+			uartlogdata = progplat.run_experiment(conn_mode, embexp_inst_idx)
 		# interpret the experiment result
 		uartlogdata_lines = uartlogdata.split("\n")
 		if exp_type == "exps2":

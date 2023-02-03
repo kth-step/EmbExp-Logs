@@ -155,7 +155,7 @@ class ProgPlatform:
 			self.write_experiment_file("asm_setup_2.h", gen_input_code(input2))
 
 
-	def run_experiment(self, conn_mode = None):
+	def run_experiment(self, conn_mode = None, embexp_inst_idx = NONE):
 		error_msg = "experiment didn't run successful"
 		maketarget = "targetdoesnotexist"
 		if conn_mode == "try" or conn_mode == None:
@@ -166,7 +166,10 @@ class ProgPlatform:
 			maketarget = "runlog_reset"
 		else:
 			raise Exception(f"invalid conn_mode: {conn_mode}")
-		self._call_make_cmd([maketarget], error_msg)
+		envvarass = []
+		if embexp_inst_idx != None:
+			envvarass = ["EMBEXP_INSTANCE_IDX=" + embexp_inst_idx]
+		self._call_make_cmd(envvarass + [maketarget], error_msg)
 		# read and return the uart output (binary)
 		with open(os.path.join(self.progplat_path, "temp/uart.log"), "r") as f:
 				uartlogdata = f.read()
