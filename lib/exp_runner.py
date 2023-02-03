@@ -41,8 +41,7 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 
 	# change to corresponding branch
 	# ======================================
-	if branchname == None:
-		branchname = progplatform.get_default_branch(board_type)
+	branchname = progplatform.decide_branchname(branchname, board_type)
 	progplat.change_branch(branchname)
 
 	try:

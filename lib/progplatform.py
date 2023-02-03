@@ -29,6 +29,11 @@ def get_default_branch(board_type):
 	assert board_type == "rpi3" or board_type == "rpi4"
 	return "scamv_" + board_type
 
+def decide_branchname(branchname, board_type):
+	if branchname == None:
+		branchname = progplatform.get_default_branch(board_type)
+	return branchname
+
 def copy_to_temp_widx(progplat, idx):
 	#construct the directory name under temp
 	sourcedir = progplat.progplat_path
