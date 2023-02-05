@@ -1,6 +1,7 @@
 
 import logging
 import json
+import time
 
 import experiment
 import progplatform
@@ -68,12 +69,13 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 		logging.info(f"running experiment")
 		if simulation_mode:
 			logging.error(f"!!! SIMULATION MODE ON !!!!")
-			import time
 			time.sleep(1)
 			uartlogdata = uartlogdata_sim
 			print(uartlogdata)
 		else:
+			start_execution_time = time.time()
 			uartlogdata = progplat.run_experiment(conn_mode)
+			execution_time = f"{time.time()-start_execution_time:.2f}s"
 		# interpret the experiment result
 		uartlogdata_lines = uartlogdata.split("\n")
 		if exp_type == "exps2":
@@ -102,7 +104,8 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 		if exprun != None:
 			logging.info(f"saving experiment data")
 			run_data = {"output_uart": uartlogdata,
-                                    "result":      result}
+                                    "result":      result,
+                                    "execution_time": execution_time}
 			nomismatches = exp.write_new_run(exprun, run_spec, run_data)
 
 	finally:
