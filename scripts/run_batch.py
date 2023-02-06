@@ -50,7 +50,7 @@ db.connect()
 
 # define experiment finding
 branchname = None
-branchname = decide_branchname(branchname, board_type)
+branchname = progplatform.decide_branchname(branchname, board_type)
 progplat_hash = progplat.get_branch_commit_hash(branchname)
 run_spec = experiment._mk_run_spec(progplat_hash, board_type)
 

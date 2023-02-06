@@ -32,7 +32,7 @@ def get_default_branch(board_type):
 
 def decide_branchname(branchname, board_type):
 	if branchname == None:
-		branchname = progplatform.get_default_branch(board_type)
+		branchname = get_default_branch(board_type)
 	return branchname
 
 def copy_to_temp_widx(progplat, idx):
@@ -212,7 +212,7 @@ class ProgPlatform:
 			self.write_experiment_file("asm_setup_2.h", gen_input_code(input2))
 
 
-	def run_experiment(self, conn_mode = None, embexp_inst_idx = NONE):
+	def run_experiment(self, conn_mode = None, embexp_inst_idx = None):
 		error_msg = "experiment didn't run successful"
 		maketarget = "targetdoesnotexist"
 		if conn_mode == "try" or conn_mode == None:
