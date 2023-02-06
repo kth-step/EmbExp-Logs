@@ -49,7 +49,9 @@ db = ldb.LogsDB()
 db.connect()
 
 # define experiment finding
-progplat_hash = progplat.get_branch_commit_hash(progplatform.get_default_branch(board_type))
+branchname = None
+branchname = decide_branchname(branchname, board_type)
+progplat_hash = progplat.get_branch_commit_hash(branchname)
 run_spec = experiment._mk_run_spec(progplat_hash, board_type)
 
 def is_latest_exp_run_not_complete(exp):
@@ -118,7 +120,7 @@ try:
 		(iter_round, iter_idx, iter_size) = exp_iter.get_iterinfo()
 		print(f"===>>> [r:{iter_round}, {(iter_idx/iter_size * 100):.2f}% of {iter_size}] {exp}")
 		try:
-			result_val = exp_runner.run_experiment(exp, progplat, board_type, conn_mode=args.conn_mode, exprun=exprun)
+			result_val = exp_runner.run_experiment(exp, progplat, board_type, conn_mode=args.conn_mode, exprun=exprun, branchname=branchname)
 			print_runtime()
 			n_exp_runs_success += 1
 			if result_val != True:

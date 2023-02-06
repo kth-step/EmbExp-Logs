@@ -7,10 +7,16 @@ import experiment
 import progplatform
 from helpers import *
 
-def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, exprun = None, run_input_state = None):
-	logging.info(f"{(exp, progplat, board_type, branchname, conn_mode, pre_cleanup, no_post_cleanup, printeval, ignoremismatch, exprun, run_input_state)}")
+def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, exprun = None, run_input_state = None, embexp_inst_idx = None, copy_to_temp = False):
+	logging.info(f"{(exp, progplat, board_type, branchname, conn_mode, pre_cleanup, no_post_cleanup, printeval, ignoremismatch, exprun, run_input_state, embexp_inst_idx, copy_to_temp)}")
 	if progplat == None:
 		progplat = progplatform.get_embexp_ProgPlatform(None)
+
+	# when working on copies, we expect that the instance indexes are controlled to be different
+	assert (not copy_to_temp) or (embexp_inst_idx != None)
+	# work on a copy if needed
+	if copy_to_temp:
+		progplat = progplatform.copy_to_temp_widx(progplat, embexp_inst_idx)
 
 	exp_arch = exp.get_prog().get_arch()
 
@@ -36,8 +42,7 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 
 	# change to corresponding branch
 	# ======================================
-	if branchname == None:
-		branchname = progplatform.get_default_branch(board_type)
+	branchname = progplatform.decide_branchname(branchname, board_type)
 	progplat.change_branch(branchname)
 
 	try:
@@ -74,7 +79,7 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 			print(uartlogdata)
 		else:
 			start_execution_time = time.time()
-			uartlogdata = progplat.run_experiment(conn_mode)
+			uartlogdata = progplat.run_experiment(conn_mode, embexp_inst_idx)
 			execution_time = f"{time.time()-start_execution_time:.2f}s"
 		# interpret the experiment result
 		uartlogdata_lines = uartlogdata.split("\n")

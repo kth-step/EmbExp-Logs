@@ -30,9 +30,27 @@ def get_default_branch(board_type):
 	assert board_type == "rpi3" or board_type == "rpi4"
 	return "scamv_" + board_type
 
+def decide_branchname(branchname, board_type):
+	if branchname == None:
+		branchname = progplatform.get_default_branch(board_type)
+	return branchname
+
+def copy_to_temp_widx(progplat, idx):
+	#construct the directory name under temp
+	sourcedir = progplat.progplat_path
+	dirname = sourcedir + "/temp/inst_" + idx
+	#delete the directory if it is there
+	logging.debug(f"preparing {dirname}")
+	call_cmd(["rm", "-rf", dirname], f"couldn't remove target directory {dirname}", False, False)
+	call_cmd(["mkdir", "-p", dirname + "/temp"], f"couldn't create {dirname/temp}", False, False)
+	#copy everything except for the temp directory
+	logging.debug(f"copying from {sourcedir} to {dirname}")
+	call_cmd(["cp", "-n", "-r", sourcedir + "/*", dirname + "/"], f"couldn't copy source directory {sourcedir} to target directory {dirname}", False, False)
+	return ProgPlatform(dirname)
+
 class ProgPlatform:
 	def __init__(self, progplat_path):
-		self.progplat_path = embexp_path = os.path.abspath(progplat_path)
+		self.progplat_path = os.path.abspath(progplat_path)
 		assert os.path.isdir(self.progplat_path)
 		logging.debug(f"using {self.progplat_path}")
 
@@ -194,7 +212,7 @@ class ProgPlatform:
 			self.write_experiment_file("asm_setup_2.h", gen_input_code(input2))
 
 
-	def run_experiment(self, conn_mode = None):
+	def run_experiment(self, conn_mode = None, embexp_inst_idx = NONE):
 		error_msg = "experiment didn't run successful"
 		maketarget = "targetdoesnotexist"
 		if conn_mode == "try" or conn_mode == None:
@@ -205,7 +223,10 @@ class ProgPlatform:
 			maketarget = "runlog_reset"
 		else:
 			raise Exception(f"invalid conn_mode: {conn_mode}")
-		self._call_make_cmd([maketarget], error_msg)
+		envvarass = []
+		if embexp_inst_idx != None:
+			envvarass = ["EMBEXP_INSTANCE_IDX=" + embexp_inst_idx]
+		self._call_make_cmd(envvarass + [maketarget], error_msg)
 		# read and return the uart output (binary)
 		with open(os.path.join(self.progplat_path, "temp/uart.log"), "r") as f:
 				uartlogdata = f.read()
