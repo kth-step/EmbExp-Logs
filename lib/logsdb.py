@@ -152,6 +152,26 @@ def get_TableLink(a,b):
 def _get_repo_rel_path(p):
 	return os.path.join(os.path.join(os.path.dirname(__file__), ".."), p)
 
+# from https://ricardoanderegg.com/posts/python-sqlite-thread-safety/
+# check the used sqlite3 compile option for threadsafety
+def get_sqlite3_thread_safety():
+    # Mape value from SQLite's THREADSAFE to Python's DBAPI 2.0
+    # threadsafety attribute.
+    sqlite_threadsafe2python_dbapi = {0: 0, 2: 1, 1: 3}
+    conn = sl.connect(":memory:")
+    threadsafety = conn.execute(
+        """
+select * from pragma_compile_options
+where compile_options like 'THREADSAFE=%'
+"""
+    ).fetchone()[0]
+    conn.close()
+
+    threadsafety_value = int(threadsafety.split("=")[1])
+
+    return sqlite_threadsafe2python_dbapi[threadsafety_value]
+
+
 class LogsDB:
 	def __init__(self, db_file = None, read_only = False):
 		self.read_only = read_only
@@ -176,8 +196,13 @@ class LogsDB:
 		# check if database already exists, if not create tables and version information from schema.sql
 		database_exists = os.path.isfile(self.database_file)
 
+		if get_sqlite3_thread_safety() == 3:
+			check_same_thread = False
+		else:
+			check_same_thread = True
+
 		db_con_str = f"file:{self.database_file}" + ("?mode=ro" if self.read_only else "")
-		self.con = sl.connect(db_con_str, uri=True)
+		self.con = sl.connect(db_con_str, uri=True, check_same_thread=check_same_thread)
 		self.con.row_factory = sl.Row
 
 		if not database_exists:
