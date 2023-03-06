@@ -169,7 +169,7 @@ def exec_exp(exp, idx):
 			#print(traceback.format_exc())
 			#print(ex)
 			print_runtime()
-			logging.warning("- unsuccessful {connidxstr}")
+			logging.warning(f"- unsuccessful {connidxstr}")
 			#time.sleep(5000)
 	finally:
 		release_idx(idx)
