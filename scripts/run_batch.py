@@ -7,6 +7,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../lib"))
 import argparse
 import logging
 import time
+import threading
+import multiprocessing.pool
 
 import logsdb as ldb
 import exprun
@@ -26,6 +28,8 @@ parser.add_argument(       "--run_once",    help="collect experiments in the beg
 parser.add_argument("-ep", "--embexp_path", help="see run_experiment.py.")
 parser.add_argument("-cm", "--conn_mode",   help="see run_experiment.py.", choices=["try", "run", "reset"])
 
+parser.add_argument("-idxs", "--indexes",   help="comma separated list of embexp remote indexes (no spaces).")
+
 parser.add_argument("-v",  "--verbose",     help="increase output verbosity", action="store_true")
 args = parser.parse_args()
 
@@ -38,6 +42,12 @@ else:
 listname   = args.listname
 board_type = args.board_type
 run_once   = args.run_once
+
+indexes = args.indexes
+if indexes != None:
+	indexes = list(map(int, indexes.split(",")))
+else:
+	indexes = [None]
 
 # create prog platform object
 progplat = progplatform.get_embexp_ProgPlatform(args.embexp_path)
@@ -104,38 +114,106 @@ exprun = exprun.ExpRun._create(db)
 # launch the runner script for each experiment in the list
 # ======================================
 logging.info(f"running all selected experiments")
-n_exp_runs = 0
-n_exp_runs_success = 0
+statistics = {
+  "n_exp_runs" : 0,
+  "n_exp_runs_success" : 0
+}
 all_start_time = time.time()
 time_of_first_false_result = None
-try:
-	for exp in exp_iter:
+
+indexes_lock = threading.Lock()
+def check_idx():
+	with indexes_lock:
+		return len(indexes) != 0
+def acquire_idx():
+	with indexes_lock:
+		idx = indexes.pop(0)
+	return idx
+def release_idx(idx):
+	with indexes_lock:
+		indexes.append(idx)
+
+def exec_exp(exp, idx):
+	success = False
+	#idx = acquire_idx()
+	try:
 		start_time = time.time()
+		connidxstr = "" if idx == None else f"(conn idx={idx})"
 		def print_runtime():
-			print(f"         - took {time.time()-start_time:.2f}s")
-		n_exp_runs += 1
+			print(f"         - took {time.time()-start_time:.2f}s {connidxstr}")
 		# reload experiment for latest values
 		exp = experiment.Experiment(db, exp.get_exp_id())
 
 		(iter_round, iter_idx, iter_size) = exp_iter.get_iterinfo()
-		print(f"===>>> [r:{iter_round}, {(iter_idx/iter_size * 100):.2f}% of {iter_size}] {exp}")
+		print(f"===>>> [r:{iter_round}, {(iter_idx/iter_size * 100):.2f}% of {iter_size}] {exp} {connidxstr}")
 		try:
-			result_val = exp_runner.run_experiment(exp, progplat, board_type, conn_mode=args.conn_mode, exprun=exprun, branchname=branchname)
+			conn_mode = args.conn_mode
+			copy_to_temp = False
+			if idx != None:
+				conn_mode = "run"
+				copy_to_temp = True
+			result_val = exp_runner.run_experiment(exp, progplat, board_type, conn_mode=conn_mode, exprun=exprun, branchname=branchname, embexp_inst_idx = idx, copy_to_temp = copy_to_temp)
 			print_runtime()
-			n_exp_runs_success += 1
+			success = True
 			if result_val != True:
-				print(f"         - Interesting result: {result_val}")
+				print(f"         - Interesting result: {result_val} {connidxstr}")
 			if result_val == False:
 				if time_of_first_false_result == None:
 					time_of_first_false_result = time.time()
-					print(f"         - first false result")
+					print(f"         - first false result {connidxstr}")
 		except KeyboardInterrupt:
+			print("keyboard interrupt raised during execution {connidxstr}")
 			raise
-		except:
+		except Exception as ex:
+			#import traceback
+			#print(traceback.format_exc())
+			#print(ex)
 			print_runtime()
-			logging.warning("- unsuccessful")
+			logging.warning("- unsuccessful {connidxstr}")
+			#time.sleep(5000)
+	finally:
+		release_idx(idx)
+	return (idx, success)
+
+def eval_result(res, statistics):
+	(idx, success) = res
+	statistics["n_exp_runs"] += 1
+	if success:
+		statistics["n_exp_runs_success"] += 1
+	#print(f"ok - conn index: {idx}")
+
+try:
+	numtasks = len(indexes)
+	if numtasks == 1:
+		idx = indexes[0]
+		for exp in exp_iter:
+			res_ = exec_exp(exp, idx)
+			eval_result(res_, statistics)
+	else:
+		with multiprocessing.pool.ThreadPool(processes=numtasks) as pool:
+			#for  in pool.imap_unordered(exec_exp, ):
+			while True:
+				result_list = []
+				for exp in exp_iter:
+					if not check_idx():
+						break
+					idx = acquire_idx()
+					res = pool.apply_async(exec_exp, (exp, idx))
+					result_list.append(res)
+					if not check_idx():
+						break
+				if result_list == []:
+					break
+
+				while result_list != []:
+					res_ = result_list.pop(0).get()
+					eval_result(res_, statistics)
+
 except KeyboardInterrupt:
 	print("-> script was cancelled by keyboard interrupt")
+
+n_exp_runs = statistics["n_exp_runs"]
+n_exp_runs_success = statistics["n_exp_runs_success"]
 
 print()
 print("="*40)
@@ -147,7 +225,7 @@ if time_of_first_false_result != None:
 	print(f"time until first counterexample (false result) is {time_of_first_false:.2f}s")
 print(f"{n_exp_runs_success} of {n_exp_runs} attempted experiment runs gave a result")
 if (n_exp_runs > 0):
-	print(f"average execution time {all_time/n_exp_runs:.2f}s")
+	print(f"average execution time {all_time/n_exp_runs:.2f}s (this computation is not taking parallelization into account)")
 if (n_exp_runs_success > 0):
 	print(f"run_spec = {run_spec}")
 print("="*40)
