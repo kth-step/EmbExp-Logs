@@ -135,6 +135,7 @@ def release_idx(idx):
 
 def exec_exp(exp, idx):
 	success = False
+	result_val = None
 	#idx = acquire_idx()
 	try:
 		start_time = time.time()
