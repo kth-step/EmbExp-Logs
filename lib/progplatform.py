@@ -38,14 +38,14 @@ def decide_branchname(branchname, board_type):
 def copy_to_temp_widx(progplat, idx):
 	#construct the directory name under temp
 	sourcedir = progplat.progplat_path
-	dirname = sourcedir + "/temp/inst_" + idx
+	dirname = sourcedir + "/temp/inst_" + str(idx)
 	#delete the directory if it is there
 	logging.debug(f"preparing {dirname}")
 	call_cmd(["rm", "-rf", dirname], f"couldn't remove target directory {dirname}", False, False)
-	call_cmd(["mkdir", "-p", dirname + "/temp"], f"couldn't create {dirname/temp}", False, False)
+	call_cmd(["mkdir", "-p", dirname + "/temp"], f"couldn't create {dirname}/temp", False, False)
 	#copy everything except for the temp directory
 	logging.debug(f"copying from {sourcedir} to {dirname}")
-	call_cmd(["cp", "-n", "-r", sourcedir + "/*", dirname + "/"], f"couldn't copy source directory {sourcedir} to target directory {dirname}", False, False)
+	call_cmd(["rsync", "--ignore-existing", "--exclude", "temp/", "-r", sourcedir + "/", dirname + ""], f"couldn't copy source directory {sourcedir} to target directory {dirname}", False, False)
 	return ProgPlatform(dirname)
 
 class ProgPlatform:
@@ -225,7 +225,7 @@ class ProgPlatform:
 			raise Exception(f"invalid conn_mode: {conn_mode}")
 		envvarass = []
 		if embexp_inst_idx != None:
-			envvarass = ["EMBEXP_INSTANCE_IDX=" + embexp_inst_idx]
+			envvarass = ["EMBEXP_INSTANCE_IDX=" + str(embexp_inst_idx)]
 		self._call_make_cmd(envvarass + [maketarget], error_msg)
 		# read and return the uart output (binary)
 		with open(os.path.join(self.progplat_path, "temp/uart.log"), "r") as f:
