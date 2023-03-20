@@ -116,10 +116,10 @@ exprun = exprun.ExpRun._create(db)
 logging.info(f"running all selected experiments")
 statistics = {
   "n_exp_runs" : 0,
-  "n_exp_runs_success" : 0
+  "n_exp_runs_success" : 0,
+  "time_of_first_false_result" : None
 }
 all_start_time = time.time()
-time_of_first_false_result = None
 
 indexes_lock = threading.Lock()
 def check_idx():
@@ -157,10 +157,6 @@ def exec_exp(exp, idx):
 			success = True
 			if result_val != True:
 				print(f"         - Interesting result: {result_val} {connidxstr}")
-			if result_val == False:
-				if time_of_first_false_result == None:
-					time_of_first_false_result = time.time()
-					print(f"         - first false result {connidxstr}")
 		except KeyboardInterrupt:
 			print("keyboard interrupt raised during execution {connidxstr}")
 			raise
@@ -173,13 +169,18 @@ def exec_exp(exp, idx):
 			#time.sleep(5000)
 	finally:
 		release_idx(idx)
-	return (idx, success)
+	return (idx, success, result_val)
 
 def eval_result(res, statistics):
-	(idx, success) = res
+	(idx, success, result_val) = res
+	connidxstr = "" if idx == None else f"(conn idx={idx})"
 	statistics["n_exp_runs"] += 1
 	if success:
 		statistics["n_exp_runs_success"] += 1
+	if result_val == False:
+		if statistics["time_of_first_false_result"] == None:
+			statistics["time_of_first_false_result"] = time.time()
+			print(f"         - first false result {connidxstr}")
 	#print(f"ok - conn index: {idx}")
 
 try:
@@ -220,8 +221,8 @@ print("="*40)
 print("="*40)
 all_time = time.time()-all_start_time
 print(f"ran for {all_time:.2f}s")
-if time_of_first_false_result != None:
-	time_of_first_false = time_of_first_false_result-all_start_time
+if statistics["time_of_first_false_result"] != None:
+	time_of_first_false = statistics["time_of_first_false_result"]-all_start_time
 	print(f"time until first counterexample (false result) is {time_of_first_false:.2f}s")
 print(f"{n_exp_runs_success} of {n_exp_runs} attempted experiment runs gave a result")
 if (n_exp_runs > 0):
