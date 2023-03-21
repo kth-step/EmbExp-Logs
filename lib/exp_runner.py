@@ -2,6 +2,7 @@
 import logging
 import json
 import time
+import threading
 
 import experiment
 import progplatform
@@ -111,7 +112,9 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 			run_data = {"output_uart": uartlogdata,
                                     "result":      result,
                                     "execution_time": execution_time}
-			nomismatches = exp.write_new_run(exprun, run_spec, run_data)
+			with run_experiment.dblock:
+				nomismatches = exp.write_new_run(exprun, run_spec, run_data)
+
 
 	finally:
 		if not no_post_cleanup:
@@ -144,4 +147,5 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 		raise Exception("the output files differ")
 
 	return result
+run_experiment.dblock = threading.Lock()
 
