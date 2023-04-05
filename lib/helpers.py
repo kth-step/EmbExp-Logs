@@ -325,8 +325,10 @@ def eval_uart_pair_cache_experiment(lines):
 
 	resultlines = []
 	for l in lines:
-		if l == resultline_false or l == resultline_true or l.startswith(resultline_inconclusive_pre):
+		if l == resultline_false or l == resultline_true:
 			resultlines.append(l)
+		elif l.startswith(resultline_inconclusive_pre):
+		  resultlines.append(resultline_inconclusive_pre)
 	assert len(resultlines) == 7
 	if resultline_false in resultlines:
 		resultline = resultline_false
