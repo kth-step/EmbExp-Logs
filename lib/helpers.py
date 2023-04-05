@@ -262,6 +262,8 @@ def parse_uart_single_cache_experiment_simp(lines, board_type):
 	num_sets = None
 	if board_type == "rpi3":
 		num_sets = 128
+	elif board_type == "rpi4":
+		num_sets = 256
 	else:
 		raise Exception("unknown board type")
 	assert num_sets != None
@@ -321,7 +323,19 @@ def eval_uart_pair_cache_experiment(lines):
 	resultline_false = "RESULT: UNEQUAL"
 	resultline_inconclusive_pre = "INCONCLUSIVE: "
 
-	resultline = lines[0]
+	resultlines = []
+	for l in lines:
+		if l == resultline_false or l == resultline_true or l.startswith(resultline_inconclusive_pre):
+			resultlines.append(l)
+	assert len(resultlines) == 7
+	if resultline_false in resultlines:
+		resultline = resultline_false
+	elif resultline_inconclusive_pre in resultlines:
+		resultline = resultline_inconclusive_pre
+	elif resultline_true in resultlines:
+		resultline = resultline_true
+	else:
+		raise Exception("result unknown!")
 
 	if resultline == resultline_true:
 		return True

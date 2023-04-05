@@ -80,7 +80,7 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 			print(uartlogdata)
 		else:
 			start_execution_time = time.time()
-			uartlogdata = progplat.run_experiment(conn_mode, embexp_inst_idx)
+			uartlogdata = progplat.run_experiment(conn_mode, embexp_inst_idx, exp)
 			execution_time = f"{time.time()-start_execution_time:.2f}s"
 		# interpret the experiment result
 		uartlogdata_lines = uartlogdata.split("\n")

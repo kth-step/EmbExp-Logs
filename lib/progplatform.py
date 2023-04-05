@@ -28,7 +28,7 @@ def get_embexp_ProgPlatform(embexp_arg):
 def get_default_branch(board_type):
 	assert board_type != None
 	assert board_type == "rpi3" or board_type == "rpi4"
-	return "scamv_" + board_type
+	return "test_cache_eviction"#"scamv_" + board_type
 
 def decide_branchname(branchname, board_type):
 	if branchname == None:
@@ -156,7 +156,7 @@ class ProgPlatform:
 		with open(os.path.join(self.progplat_path, f"all/inc/experiment/{filename}"), "w") as f:
 			f.write(binary_exits_text)
 
-	def configure_experiment(self, board_type, exp, num_mul_runs = 10, run_input_state = None):
+	def configure_experiment(self, board_type, exp, num_mul_runs = 10, num_cache_exp = 7, run_input_state = None):
 		assert self._writable
 		exp_type = exp.get_exp_type()
 		exp_type = exp_type if run_input_state == None else "exps1"
@@ -188,10 +188,11 @@ class ProgPlatform:
 		config_text += f"PROGPLAT_PARAMS       ={exp.get_exp_params()}\n"
 		config_text += f"PROGPLAT_BOARD        ={board_type}\n"
 		if exp_type == "exps2":
-			config_text += f"PROGPLAT_RUN_TIMEOUT  =60\n"
+			config_text += f"PROGPLAT_RUN_TIMEOUT  =280\n"
 		elif exp_type == "exps1":
-			config_text += f"PROGPLAT_RUN_TIMEOUT  =80\n"
+			config_text += f"PROGPLAT_RUN_TIMEOUT  =180\n"
 		config_text += f"__PROGPLAT_MUL_RUNS__ ={num_mul_runs}\n"
+		config_text += f"__PROGPLAT_CACHE_EXP__ ={num_cache_exp}\n"
 		config_text += "" if defmem_train == None else f"__PROGPLAT_MEM_DEF_TRAIN__  =expmem_byte_to_word({defmem_train})\n"
 		config_text += "" if defmem_1 == None     else f"__PROGPLAT_MEM_DEF_1__  =expmem_byte_to_word({defmem_1})\n"
 		config_text += "" if defmem_2 == None     else f"__PROGPLAT_MEM_DEF_2__  =expmem_byte_to_word({defmem_2})\n"
@@ -212,7 +213,10 @@ class ProgPlatform:
 			self.write_experiment_file("asm_setup_2.h", gen_input_code(input2))
 
 
-	def run_experiment(self, conn_mode = None, embexp_inst_idx = None):
+	def run_experiment(self, conn_mode = None, embexp_inst_idx = None, exp = None):
+		assert exp != None
+		expname = exp.get_exp_id()
+		expfile = f"{expname}.log"
 		error_msg = "experiment didn't run successful"
 		maketarget = "targetdoesnotexist"
 		if conn_mode == "try" or conn_mode == None:
@@ -230,6 +234,13 @@ class ProgPlatform:
 		# read and return the uart output (binary)
 		with open(os.path.join(self.progplat_path, "temp/uart.log"), "r") as f:
 				uartlogdata = f.read()
+
+		with open(os.path.join("./progplatformlogs", expfile), "w") as fw:
+				res_write = fw.write(uartlogdata)
+		if res_write != len(uartlogdata):
+				os.remove(os.path.join("./progplatformlogs", expfile))
+				raise Exception("res_write not equal to uartlogdata size")
+
 		return uartlogdata
 
 
