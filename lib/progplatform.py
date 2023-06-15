@@ -156,7 +156,7 @@ class ProgPlatform:
 		with open(os.path.join(self.progplat_path, f"all/inc/experiment/{filename}"), "w") as f:
 			f.write(binary_exits_text)
 
-	def configure_experiment(self, board_type, exp, num_mul_runs = 10, num_cache_exp = 7, run_input_state = None):
+	def configure_experiment(self, board_type, exp, num_mul_runs = 10, num_cache_exp = 7, run_input_state = None, cpu_cycles=None):
 		assert self._writable
 		exp_type = exp.get_exp_type()
 		exp_type = exp_type if run_input_state == None else "exps1"
@@ -178,6 +178,10 @@ class ProgPlatform:
 		else:
 			input2 = None
 
+		if cpu_cycles:
+			train = None
+			num_mul_runs = 1
+
 		defmem_train = None if train == None else (train["mem"]["default"])
 		defmem_1     = None if input1 == None else (input1["mem"]["default"])
 		defmem_2     = None if input2 == None else (input2["mem"]["default"])
@@ -187,7 +191,9 @@ class ProgPlatform:
 		config_text += f"PROGPLAT_TYPE         ={exp_type}\n"
 		config_text += f"PROGPLAT_PARAMS       ={exp.get_exp_params()}\n"
 		config_text += f"PROGPLAT_BOARD        ={board_type}\n"
-		if exp_type == "exps2":
+		if cpu_cycles:
+		  config_text += f"PROGPLAT_RUN_TIMEOUT  =380\n"
+		elif exp_type == "exps2":
 			config_text += f"PROGPLAT_RUN_TIMEOUT  =280\n"
 		elif exp_type == "exps1":
 			config_text += f"PROGPLAT_RUN_TIMEOUT  =180\n"
@@ -197,6 +203,8 @@ class ProgPlatform:
 		config_text += "" if defmem_1 == None     else f"__PROGPLAT_MEM_DEF_1__  =expmem_byte_to_word({defmem_1})\n"
 		config_text += "" if defmem_2 == None     else f"__PROGPLAT_MEM_DEF_2__  =expmem_byte_to_word({defmem_2})\n"
 		config_text += "" if binary == None       else f"PROGPLAT_LOAD_ELF     ={binary_pathfilename}\n"
+		if cpu_cycles:
+			config_text += f"__COUNT_CPU_CYCLES__  =\n"
 
 		with open(os.path.join(self.progplat_path, f"Makefile.config"), "w+") as f:
 			f.write(config_text)

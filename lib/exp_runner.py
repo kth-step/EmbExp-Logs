@@ -8,7 +8,7 @@ import experiment
 import progplatform
 from helpers import *
 
-def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, exprun = None, run_input_state = None, embexp_inst_idx = None, copy_to_temp = False):
+def run_experiment(exp, progplat = None, board_type = None, branchname = None, conn_mode = None, pre_cleanup = None, no_post_cleanup = False, printeval = False, ignoremismatch = False, exprun = None, run_input_state = None, embexp_inst_idx = None, copy_to_temp = False, cpu_cycles=False):
 	logging.info(f"{(exp, progplat, board_type, branchname, conn_mode, pre_cleanup, no_post_cleanup, printeval, ignoremismatch, exprun, run_input_state, embexp_inst_idx, copy_to_temp)}")
 	if progplat == None:
 		progplat = progplatform.get_embexp_ProgPlatform(None)
@@ -50,7 +50,7 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 		# generate the experiment code
 		# ======================================
 		logging.info(f"generating experiment code")
-		progplat.configure_experiment(board_type, exp, run_input_state=run_input_state)
+		progplat.configure_experiment(board_type, exp, run_input_state=run_input_state, cpu_cycles=cpu_cycles)
 		run_spec = progplat.get_configured_run_spec()
 
 
@@ -84,7 +84,17 @@ def run_experiment(exp, progplat = None, board_type = None, branchname = None, c
 			execution_time = f"{time.time()-start_execution_time:.2f}s"
 		# interpret the experiment result
 		uartlogdata_lines = uartlogdata.split("\n")
-		if exp_type == "exps2":
+		# handling cpu cycles experiment
+		if cpu_cycles:
+			if exp_type == "exps2":
+				result = eval_uart_pair_cpu_cycles_experiment(uartlogdata_lines)
+			elif exp_type == "exps1":
+				result = eval_uart_single_cpu_cycles_experiment(uartlogdata_lines)
+			else:
+				raise Exception(f"unknown experiment type: {exp_type}")
+			print(f"cpu cycles: {result}")
+			return None
+		elif exp_type == "exps2":
 			result = eval_uart_pair_cache_experiment(uartlogdata_lines)
 		elif exp_type == "exps1":
 			result = parse_uart_single_cache_experiment(uartlogdata_lines, board_type)

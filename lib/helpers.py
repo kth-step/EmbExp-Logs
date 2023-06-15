@@ -329,7 +329,7 @@ def eval_uart_pair_cache_experiment(lines):
 			resultlines.append(l)
 		elif l.startswith(resultline_inconclusive_pre):
 		  resultlines.append(resultline_inconclusive_pre)
-	assert len(resultlines) == 7
+	assert len(resultlines) == 7 #7 cache states
 	if resultline_false in resultlines:
 		resultline = resultline_false
 	elif resultline_inconclusive_pre in resultlines:
@@ -349,4 +349,63 @@ def eval_uart_pair_cache_experiment(lines):
 	else:
 		raise Exception(f"the result line is not as expected: {lines[0]}")
 
+def compute_stats(data):
+	import statistics
+	out = ""
+	out += f"mean: {statistics.mean(data)}"
+	out += f"\nsd: {statistics.stdev(data)}"
+	out += f"\nmax: {max(data)}"
+	return out
+
+def eval_uart_single_cpu_cycles_experiment(lines):
+	lines = check_uart_experiment_base(lines)
+	if isinstance(lines, str):
+		return lines
+
+	resultline = "CPU_CYCLES: "
+
+	resultline_out = ""
+	resultlines = []
+	for l in lines:
+		if l.startswith(resultline):
+			cpu_cycles_num = l[len(resultline):]
+			assert int(cpu_cycles_num)
+			resultlines.append(int(cpu_cycles_num))
+	assert len(resultlines) == 7 #7 cache states
+	print(",".join(str(rl) for rl in resultlines))
+	resultline_out += f"\n{compute_stats(resultlines[:7])}"
+
+	if resultline.startswith(resultline):
+		return f"{resultline_out}"
+	else:
+		raise Exception(f"the result line is not as expected: {resultline_out}")
+
+def eval_uart_pair_cpu_cycles_experiment(lines):
+	lines = check_uart_experiment_base(lines)
+	if isinstance(lines, str):
+		return lines
+
+	resultline = "CPU_CYCLES: "
+
+	resultline_out = ""
+	resultlines = []
+	for l in lines:
+		if l.startswith(resultline):
+			cpu_cycles_num = l[len(resultline):]
+			assert int(cpu_cycles_num)
+			resultlines.append(int(cpu_cycles_num))
+	assert len(resultlines) == 7*2 #7 cache states for 2 inputs
+	input1 = resultlines[::2]
+	input2 = resultlines[1::2]
+	data = input1 + input2
+	print(",".join(str(rl) for rl in data))
+	resultline_out += f"\n++++++++Input 1++++++++"
+	resultline_out += f"\n{compute_stats(input1)}"
+	resultline_out += f"\n++++++++Input 2++++++++"
+	resultline_out += f"\n{compute_stats(input2)}"
+
+	if resultline.startswith(resultline):
+		return f"{resultline_out}"
+	else:
+		raise Exception(f"the result line is not as expected: {resultline_out}")
 

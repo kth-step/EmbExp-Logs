@@ -21,6 +21,8 @@ parser.add_argument("-br", "--branchname", help="branch of ProgPlatform, default
 
 parser.add_argument("-is", "--input_state", help="run as single experiment with given input state name")
 
+parser.add_argument("-cc", "--cpu_cycles", help="run experiment to compute the number of cpu cycles", action="store_true")
+
 parser.add_argument("-ep", "--embexp_path", help="path to embexp repositories")
 parser.add_argument("-cm", "--conn_mode", help="connection mode: try (default), run, reset. 'try' for trying an active connection, otherwise do ad-hoc connect (runlog_try, default). 'reset' for connect with reset (runlog_reset). 'run' for simply using an active connection (runlog).", choices=["try", "run", "reset"])
 
@@ -57,7 +59,7 @@ print("opening db...")
 print()
 with ldb.LogsDB() as db:
 	exp = experiment.Experiment(db, int(args.exp_id))
-	exp_runner.run_experiment(exp, progplat, args.board_type, args.branchname, args.conn_mode, force_cleanup, args.no_post_clean, True, run_input_state=args.input_state)
+	exp_runner.run_experiment(exp, progplat, args.board_type, args.branchname, args.conn_mode, force_cleanup, args.no_post_clean, True, run_input_state=args.input_state, cpu_cycles=args.cpu_cycles)
 
 
 
