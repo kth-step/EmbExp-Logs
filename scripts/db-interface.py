@@ -189,7 +189,7 @@ def run_one_interaction(operation, json_arguments, is_read_only, is_testing = Fa
 	with ldb.LogsDB(alt_db_file, read_only=is_read_only) as db:
 		# execute operation
 		ret_val = opfun(db, json_arguments)
-	return ret_val
+	return json.dumps(ret_val)
 
 def send_terminated_string(f, termination_line, s):
 	print(s, file=f)
@@ -227,9 +227,9 @@ if args.cont_in_out:
 		is_testing = json_query["is_testing"] #boolean
 		is_read_only = json_query["is_read_only"] #boolean
 		# process
-		ret_val = run_one_interaction(operation, json_arguments, is_read_only, is_testing)
+		r = run_one_interaction(operation, json_arguments, is_read_only, is_testing)
 		# send response
-		send_terminated_string(sys.stdout, magic_termination_line, json.dumps(ret_val))
+		send_terminated_string(sys.stdout, magic_termination_line, r)
 		break
 else:
 	# traditional mode, one db-interface command transaction per run of the process
@@ -239,8 +239,8 @@ else:
 		logging.info(f"from stdin...")
 		json_arguments = json.load(sys.stdin)
 
-	ret_val = run_one_interaction(operation, json_arguments, is_read_only, is_testing)
+	r = run_one_interaction(operation, json_arguments, is_read_only, is_testing)
 
 	# return value is serialized with json and printed on stdout
-	print(json.dumps(ret_val))
+	print(r)
 
