@@ -14,9 +14,9 @@ import logsdb as ldb
 parser = argparse.ArgumentParser(description='Database interface with operation as argument and json formatted input and output.',
                                  epilog="Provide json formatted arguments on stdin, receive json formatted result on stdout (in case there are no exceptions).")
 
-parser.add_argument("-cio", "--cont_in_out", help="continuously take input from stdin and send outputs to stdout")
+parser.add_argument("-ts", "--term_string", help="if cio is taken as operation, defines the termination string; then input is continuously taken from stdin and outputs are sent to stdout")
 
-parser.add_argument("operation",       help="operation to execute on database (is used as termination_line when --cont_in_out option is used)", choices=["create", "append", "query"])
+parser.add_argument("operation",       help="operation to execute on database", choices=["create", "append", "query", "cio"])
 
 parser.add_argument("-i", "--input", help="take input as command line argument instead of stdin")
 
@@ -200,7 +200,7 @@ def send_terminated_string(f, termination_line, s):
 def receive_terminated_string(f, termination_line):
 	lines = []
 	while True:
-		line = f.readline()
+		line = f.readline().rstrip()
 		if line == termination_line:
 			break
 		lines += line
@@ -213,12 +213,15 @@ operation = args.operation
 input_data = args.input
 is_testing = args.testing
 is_read_only = True if args.read_only else False
+is_cont_in_out = operation == "cio"
 
-if args.cont_in_out:
+if is_cont_in_out:
+	magic_termination_line = args.term_string
+	if magic_termination_line == None:
+		raise Exception("need a termination string")
 	# start i/o loop
 	logging.info(f"starting i/o loop")
 	while True: # check if this needs to be done differently
-		magic_termination_line = operation
 		# receive query
 		json_query_raw = receive_terminated_string(sys.stdin, magic_termination_line)
 		json_query = json.loads(json_query_raw)
@@ -230,7 +233,6 @@ if args.cont_in_out:
 		r = run_one_interaction(operation, json_arguments, is_read_only, is_testing)
 		# send response
 		send_terminated_string(sys.stdout, magic_termination_line, r)
-		break
 else:
 	# traditional mode, one db-interface command transaction per run of the process
 	if input_data != None:
