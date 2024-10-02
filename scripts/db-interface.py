@@ -200,8 +200,8 @@ def send_terminated_string(f, termination_line, s):
 def receive_terminated_string(f, termination_line):
 	lines = []
 	while True:
-		line = f.readline().rstrip()
-		if line == termination_line:
+		line = f.readline()
+		if line == (termination_line + "\n"):
 			break
 		lines += line
 	return "".join(lines)
