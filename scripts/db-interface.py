@@ -10,6 +10,9 @@ import logging
 import json
 import logsdb as ldb
 
+from cProfile import Profile
+from pstats import SortKey, Stats
+
 # parse arguments
 parser = argparse.ArgumentParser(description='Database interface with operation as argument and json formatted input and output.',
                                  epilog="Provide json formatted arguments on stdin, receive json formatted result on stdout (in case there are no exceptions).")
@@ -30,8 +33,20 @@ args = parser.parse_args()
 # set log level
 if args.verbose:
 	logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+	do_profiling = True
 else:
 	logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
+	do_profiling = False
+
+if do_profiling:
+  profile = Profile()
+  profile.enable()
+
+def print_stats():
+  if do_profiling:
+    #.strip_dirs()
+    #SortKey.CALLS
+    Stats(profile, stream=sys.stderr).sort_stats(SortKey.CUMULATIVE).print_stats()
 
 # define executions for each operation type
 """ op:create """
@@ -206,6 +221,7 @@ def readline(f):
 			break
 		if c == "":
 			logging.info("EOF, exiting")
+			print_stats()
 			exit(0)
 	return line
 
