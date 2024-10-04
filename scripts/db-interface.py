@@ -197,10 +197,22 @@ def send_terminated_string(f, termination_line, s):
 	# flush stdout buffer
 	f.flush()
 
+def readline(f):
+	line = ""
+	while True:
+		c = f.read(1)
+		line += c
+		if c == "\n":
+			break
+		if c == "":
+			logging.info("EOF, exiting")
+			exit(0)
+	return line
+
 def receive_terminated_string(f, termination_line):
 	lines = []
 	while True:
-		line = f.readline()
+		line = readline(f)
 		if line == (termination_line + "\n"):
 			break
 		lines.append(line)
