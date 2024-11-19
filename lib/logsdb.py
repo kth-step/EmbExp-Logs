@@ -227,7 +227,7 @@ class LogsDB:
 			except AssertionError:
 				raise Exception("db version could not be determined or is incorrect")
 		# consistency check to see if the table names are as expected
-		self.to_string()
+		#self.to_string()
 
 		self.enable_fk_constraints()
 
