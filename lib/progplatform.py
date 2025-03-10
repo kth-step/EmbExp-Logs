@@ -8,7 +8,7 @@ from helpers import *
 def _autodetect_embexp_path(embexp_arg = None):
 	embexp_path = embexp_arg
 	if embexp_path == None:
-		embexp_path = os.path.expandvars("${HOLBA_EMBEXP_DIR}")
+		embexp_path = os.path.expandvars("${SCAMV_EMBEXP_DIR}")
 	if not os.path.isdir(embexp_path):
 		raise Exception(f"Path to embexp is not an existing directory: {embexp_path}")
 	embexp_path = os.path.abspath(embexp_path)
