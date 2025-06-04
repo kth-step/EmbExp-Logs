@@ -197,18 +197,21 @@ try:
 			while True:
 				result_list = []
 				for exp in exp_iter:
+					if any(exp.get_exp_id() == eid for (_, eid) in result_list):
+						continue
 					if not check_idx():
 						break
 					idx = acquire_idx()
 					res = pool.apply_async(exec_exp, (exp, idx))
-					result_list.append(res)
+					result_list.append((res, exp.get_exp_id()))
 					if not check_idx():
 						break
 				if result_list == []:
 					break
 
 				while result_list != []:
-					res_ = result_list.pop(0).get()
+					res, _ = result_list.pop(0)
+					res_ = res.get()
 					eval_result(res_, statistics)
 
 except KeyboardInterrupt:
