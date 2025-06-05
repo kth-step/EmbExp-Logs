@@ -4,6 +4,7 @@ import os
 
 import logging
 import datetime
+import threading
 import collections
 from enum import Enum
 
@@ -192,6 +193,8 @@ class LogsDB:
 		if not os.path.isdir(self.backup_dir):
 			os.mkdir(self.backup_dir)
 
+		self.op_lock = threading.Lock()
+
 	def connect(self):
 		# check if database already exists, if not create tables and version information from schema.sql
 		database_exists = os.path.isfile(self.database_file)
@@ -289,132 +292,134 @@ class LogsDB:
 
 	# append new datasets, should not break database integrity constraints (we have an extra function to append to existing metadata)
 	def add_tablerecord(self, data, id_only = False, match_existing = False, allow_id = False):
-		(data_type, table) = LogsDB._get_tablerecord_info(data)
+		with self.op_lock:
+			(data_type, table) = LogsDB._get_tablerecord_info(data)
 
-		# match_existing: match existing entries: matches existing, or creates new entry only if matching does not exist yet
+			# match_existing: match existing entries: matches existing, or creates new entry only if matching does not exist yet
 
-		fields = list(data._fields)
-		# tables with a generic id field need special treatment
-		if (not allow_id) and ("id" in fields):
-			if data.id != None:
-				raise Exception(f"the id cannot be forced on entries for table '{table}', must be None here")
-			fields.remove("id")
+			fields = list(data._fields)
+			# tables with a generic id field need special treatment
+			if (not allow_id) and ("id" in fields):
+				if data.id != None:
+					raise Exception(f"the id cannot be forced on entries for table '{table}', must be None here")
+				fields.remove("id")
 
-		fields = list(filter(lambda n: getattr(data, n) != None, fields))
-		sql_values = list(map(lambda n: getattr(data, n), fields))
+			fields = list(filter(lambda n: getattr(data, n) != None, fields))
+			sql_values = list(map(lambda n: getattr(data, n), fields))
 
-		# prepare sql query for matching
-		sql_m_str = LogsDB._prep_sql_match(table, fields, id_only)
+			# prepare sql query for matching
+			sql_m_str = LogsDB._prep_sql_match(table, fields, id_only)
 
-		# prepare sql query for insertion
-		sql_fields_str = f"({', '.join(fields)})"
-		sql_values_str = f"({', '.join(['?'] * len(fields))})"
-		sql_values     = list(map(lambda n: getattr(data, n), fields))
-		sql_str = f"INSERT INTO {table} {sql_fields_str} VALUES {sql_values_str}"
-		logging.info(sql_str)
+			# prepare sql query for insertion
+			sql_fields_str = f"({', '.join(fields)})"
+			sql_values_str = f"({', '.join(['?'] * len(fields))})"
+			sql_values     = list(map(lambda n: getattr(data, n), fields))
+			sql_str = f"INSERT INTO {table} {sql_fields_str} VALUES {sql_values_str}"
+			logging.info(sql_str)
 
-		if not id_only:
-			sql_fields = "*"
-		else:
-			sql_fields = "id"
+			if not id_only:
+				sql_fields = "*"
+			else:
+				sql_fields = "id"
 
-		try:
-			rowid = None
-			with self.con:
-				cur = self.con.cursor()
-				# if there is an existing entry, take this one
-				if match_existing:
+			try:
+				rowid = None
+				with self.con:
+					cur = self.con.cursor()
+					# if there is an existing entry, take this one
+					if match_existing:
+						if len(fields) == 0:
+							cur.execute(sql_m_str)
+						else:
+							cur.execute(sql_m_str, sql_values)
+						if not id_only:
+							cur.row_factory = row_factory_simple(data_type._make)
+						else:
+							cur.row_factory = row_factory_simple(TR_id_only._make)
+						r = list(cur.fetchall())
+						assert(len(r) == 0 or len(r) == 1)
+						if len(r) == 1:
+							return r[0]
+
 					if len(fields) == 0:
-						cur.execute(sql_m_str)
+						cur.execute(sql_str)
 					else:
-						cur.execute(sql_m_str, sql_values)
+						cur.execute(sql_str, sql_values)
+					rowid = cur.lastrowid
+
+					cur.execute(f"SELECT {sql_fields} FROM {table} WHERE rowid = {rowid}")
 					if not id_only:
 						cur.row_factory = row_factory_simple(data_type._make)
 					else:
 						cur.row_factory = row_factory_simple(TR_id_only._make)
-					r = list(cur.fetchall())
-					assert(len(r) == 0 or len(r) == 1)
-					if len(r) == 1:
-						return r[0]
-
-				if len(fields) == 0:
-					cur.execute(sql_str)
-				else:
-					cur.execute(sql_str, sql_values)
-				rowid = cur.lastrowid
-
-				cur.execute(f"SELECT {sql_fields} FROM {table} WHERE rowid = {rowid}")
-				if not id_only:
-					cur.row_factory = row_factory_simple(data_type._make)
-				else:
-					cur.row_factory = row_factory_simple(TR_id_only._make)
-				return cur.fetchone()
-		except:
-			raise Exception("adding data failed")
+					return cur.fetchone()
+			except:
+				raise Exception("adding data failed")
 
 	# appending to existing metadata
 	# (for metadata tables, kind must be different from None/NULL)
 	# (if entry doesn't exist yet, we fail)
 	# (otherwise we append string to string - value must be a string)
 	def append_tablerecord_meta(self, data):
-		(data_type, table) = LogsDB._get_tablerecord_info(data)
+		with self.op_lock:
+			(data_type, table) = LogsDB._get_tablerecord_info(data)
 
-		# check whether we deal with a "meta" table
-		if not table.endswith("_meta"):
-			raise Exception("this is only allowed for meta tables")
+			# check whether we deal with a "meta" table
+			if not table.endswith("_meta"):
+				raise Exception("this is only allowed for meta tables")
 
-		# kind must be different from None
-		if data.kind == None:
-			raise Exception("'kind' must be different than None")
+			# kind must be different from None
+			if data.kind == None:
+				raise Exception("'kind' must be different than None")
 
-		# prepare select query (find entry where all fields except "value" are equal)
-		fields = list(data._fields)
-		assert("value" in fields)
-		fields.remove("value")
+			# prepare select query (find entry where all fields except "value" are equal)
+			fields = list(data._fields)
+			assert("value" in fields)
+			fields.remove("value")
 
-		sql_cond_strs = []
-		for f in fields:
-			sql_cond_strs.append(f"{f} = ?")
-		sql_values = list(map(lambda n: getattr(data, n), fields))
-		sql_str_base = f"SELECT * FROM {table}"
-		sql_cond_str = ("" if len(sql_values) == 0 else f" WHERE {' AND '.join(sql_cond_strs)}")
-		sql_str = sql_str_base + sql_cond_str
-		logging.info(sql_str)
-		logging.info(sql_values)
-		assert(len(sql_cond_strs) > 0)
+			sql_cond_strs = []
+			for f in fields:
+				sql_cond_strs.append(f"{f} = ?")
+			sql_values = list(map(lambda n: getattr(data, n), fields))
+			sql_str_base = f"SELECT * FROM {table}"
+			sql_cond_str = ("" if len(sql_values) == 0 else f" WHERE {' AND '.join(sql_cond_strs)}")
+			sql_str = sql_str_base + sql_cond_str
+			logging.info(sql_str)
+			logging.info(sql_values)
+			assert(len(sql_cond_strs) > 0)
 
-		# prepare update query, use sql_cond_str from before
-		sql_upd_str_base = f"UPDATE {table} SET value = ?"
-		sql_upd_str = sql_upd_str_base + sql_cond_str
+			# prepare update query, use sql_cond_str from before
+			sql_upd_str_base = f"UPDATE {table} SET value = ?"
+			sql_upd_str = sql_upd_str_base + sql_cond_str
 
-		# all in one transaction
-		try:
-			with self.con:
-				cur = self.con.cursor()
-				cur.execute(sql_str, sql_values)
-				cur.row_factory = row_factory_simple(data_type._make)
-				data_l_0 = list(cur.fetchall())
+			# all in one transaction
+			try:
+				with self.con:
+					cur = self.con.cursor()
+					cur.execute(sql_str, sql_values)
+					cur.row_factory = row_factory_simple(data_type._make)
+					data_l_0 = list(cur.fetchall())
 
-				# if we cannot find a matching row, we fail
-				assert(len(data_l_0) < 2)
-				if len(data_l_0) != 1:
-					raise Exception("cannot find a matching row to append to")
-				data_0 = data_l_0[0]
+					# if we cannot find a matching row, we fail
+					assert(len(data_l_0) < 2)
+					if len(data_l_0) != 1:
+						raise Exception("cannot find a matching row to append to")
+					data_0 = data_l_0[0]
 
-				# both values must be a string
-				if not ((type(data_0.value) is str) and (type(data.value) is str)):
-					raise Exception("both values must be strings for appending")
-				val_new = data_0.value + data.value
+					# both values must be a string
+					if not ((type(data_0.value) is str) and (type(data.value) is str)):
+						raise Exception("both values must be strings for appending")
+					val_new = data_0.value + data.value
 
-				# we append and update
-				cur.execute(sql_upd_str, [val_new] + sql_values)
+					# we append and update
+					cur.execute(sql_upd_str, [val_new] + sql_values)
 
-				# select again to return new metadata
-				cur.execute(sql_str, sql_values)
-				cur.row_factory = row_factory_simple(data_type._make)
-				return cur.fetchone() 
-		except:
-			raise Exception("appending metadata failed")
+					# select again to return new metadata
+					cur.execute(sql_str, sql_values)
+					cur.row_factory = row_factory_simple(data_type._make)
+					return cur.fetchone() 
+			except:
+				raise Exception("appending metadata failed")
 
 	def _prep_sql_match(table, fields, id_only = False):
 		# for id_only
@@ -434,33 +439,34 @@ class LogsDB:
 
 	# for very simple matching queries
 	def get_tablerecord_matches(self, data, count_only = False, id_only = False):
-		(data_type, table) = LogsDB._get_tablerecord_info(data)
+		with self.op_lock:
+			(data_type, table) = LogsDB._get_tablerecord_info(data)
 
-		fields = list(filter(lambda n: getattr(data, n) != None, data._fields))
-		sql_values = list(map(lambda n: getattr(data, n), fields))
+			fields = list(filter(lambda n: getattr(data, n) != None, data._fields))
+			sql_values = list(map(lambda n: getattr(data, n), fields))
 
-		sql_str = LogsDB._prep_sql_match(table, fields, id_only)
+			sql_str = LogsDB._prep_sql_match(table, fields, id_only)
 
-		try:
-			with self.con:
-				cur = self.con.cursor()
-				if len(fields) == 0:
-					cur.execute(sql_str)
-				else:
-					cur.execute(sql_str, sql_values)
-				if count_only:
-					n = 0
-					for _ in cur:
-						n += 1
-					return n
-				else:
-					if not id_only:
-						cur.row_factory = row_factory_simple(data_type._make)
+			try:
+				with self.con:
+					cur = self.con.cursor()
+					if len(fields) == 0:
+						cur.execute(sql_str)
 					else:
-						cur.row_factory = row_factory_simple(TR_id_only._make)
-					return list(cur.fetchall())
-		except:
-			raise Exception("retrieving data failed")
+						cur.execute(sql_str, sql_values)
+					if count_only:
+						n = 0
+						for _ in cur:
+							n += 1
+						return n
+					else:
+						if not id_only:
+							cur.row_factory = row_factory_simple(data_type._make)
+						else:
+							cur.row_factory = row_factory_simple(TR_id_only._make)
+						return list(cur.fetchall())
+			except:
+				raise Exception("retrieving data failed")
 
 	def _get_sql_from_exp(ids, tables, exp):
 		if type(exp) is QE_Not:
@@ -501,91 +507,92 @@ class LogsDB:
 		#          - inner joins given as list where first one is the queried type, all together are used for the query
 		# fixed to inner join for now, probably don't need more at first
 
-		_tables = [table]+list(map(lambda x: x[0], joins))
-		# check that tables and tables in joins are allowed
-		if not all(map(lambda x: x in tables_all, _tables)):
-			raise Exception("not all mentioned tables are known")
+		with self.op_lock:
+			_tables = [table]+list(map(lambda x: x[0], joins))
+			# check that tables and tables in joins are allowed
+			if not all(map(lambda x: x in tables_all, _tables)):
+				raise Exception("not all mentioned tables are known")
 
-		# build map index to generated tablename
-		def get_table_from_idx(idx):
-			assert(idx >= 0)
-			if idx > len(joins):
-				raise Exception("index too high")
-			return f"_tmp_{idx}"
-		_tables_ids = list(map(get_table_from_idx, range(len(_tables))))
+			# build map index to generated tablename
+			def get_table_from_idx(idx):
+				assert(idx >= 0)
+				if idx > len(joins):
+					raise Exception("index too high")
+				return f"_tmp_{idx}"
+			_tables_ids = list(map(get_table_from_idx, range(len(_tables))))
 
-		# build from-construction with inner joins
-		idx = 0
-		sql_from_str = f"  {table} AS {_tables_ids[idx]}\n"
-		for (t,ref_idx) in joins:
-			idx += 1
-			if ref_idx >= idx:
-				raise Exception("forward reference not allowed")
-			assert(t == _tables[idx])
-			(f_t, f_r) = get_TableLink(t, _tables[ref_idx])
-			_exp = QE_Bin(op=QE_Bop.EQ, arg1=QE_Ref(index=idx, field=f_t), arg2=QE_Ref(index=ref_idx, field=f_r))
-			(sql_j_str, sql_j_vl) = LogsDB._get_sql_from_exp(_tables_ids, _tables, _exp)
-			assert(len(sql_j_vl) == 0)
-			sql_from_str += f"  INNER JOIN {t} AS {_tables_ids[idx]} ON {sql_j_str}\n"
-		# translate query_exp to sql condition string
-		(sql_w_str, sql_w_vl) = LogsDB._get_sql_from_exp(_tables_ids, _tables, query_exp)
-		# build order_by list
-		order_by_l = []
-		for (idx,fld,asc) in order_by:
-			if idx >= len(_tables):
-				raise Exception("index out of range")
-			t = _tables[idx]
-			if not fld in TR_by_table[t]._fields:
-				raise Exception("field '{fld}' is not in table '{t}'")
-			asc_str = "ASC" if asc else "DESC"
-			order_by_l.append(f"{_tables_ids[idx]}.{fld} {asc_str}")
-		sql_order_by_str = ""
-		if len(order_by_l) > 0:
-			sql_order_by_str = f"ORDER BY {', '.join(order_by_l)}"
+			# build from-construction with inner joins
+			idx = 0
+			sql_from_str = f"  {table} AS {_tables_ids[idx]}\n"
+			for (t,ref_idx) in joins:
+				idx += 1
+				if ref_idx >= idx:
+					raise Exception("forward reference not allowed")
+				assert(t == _tables[idx])
+				(f_t, f_r) = get_TableLink(t, _tables[ref_idx])
+				_exp = QE_Bin(op=QE_Bop.EQ, arg1=QE_Ref(index=idx, field=f_t), arg2=QE_Ref(index=ref_idx, field=f_r))
+				(sql_j_str, sql_j_vl) = LogsDB._get_sql_from_exp(_tables_ids, _tables, _exp)
+				assert(len(sql_j_vl) == 0)
+				sql_from_str += f"  INNER JOIN {t} AS {_tables_ids[idx]} ON {sql_j_str}\n"
+			# translate query_exp to sql condition string
+			(sql_w_str, sql_w_vl) = LogsDB._get_sql_from_exp(_tables_ids, _tables, query_exp)
+			# build order_by list
+			order_by_l = []
+			for (idx,fld,asc) in order_by:
+				if idx >= len(_tables):
+					raise Exception("index out of range")
+				t = _tables[idx]
+				if not fld in TR_by_table[t]._fields:
+					raise Exception("field '{fld}' is not in table '{t}'")
+				asc_str = "ASC" if asc else "DESC"
+				order_by_l.append(f"{_tables_ids[idx]}.{fld} {asc_str}")
+			sql_order_by_str = ""
+			if len(order_by_l) > 0:
+				sql_order_by_str = f"ORDER BY {', '.join(order_by_l)}"
 
-		# for id_only
-		if not id_only:
-			sql_fields = f"DISTINCT {_tables_ids[0]}.*"
-		else:
-			sql_fields = f"{_tables_ids[0]}.id"
+			# for id_only
+			if not id_only:
+				sql_fields = f"DISTINCT {_tables_ids[0]}.*"
+			else:
+				sql_fields = f"{_tables_ids[0]}.id"
 
-		# generate whole query
-		sql_str  = f"SELECT {sql_fields} FROM (\n"
-		sql_str += sql_from_str
-		sql_str += ")\n"
-		sql_str += "WHERE (\n"
-		sql_str += sql_w_str + "\n"
-		sql_str += ")\n"
-		sql_str += sql_order_by_str
-		#print(60 * "=")
-		#print(sql_str)
-		#print(sql_w_vl)
+			# generate whole query
+			sql_str  = f"SELECT {sql_fields} FROM (\n"
+			sql_str += sql_from_str
+			sql_str += ")\n"
+			sql_str += "WHERE (\n"
+			sql_str += sql_w_str + "\n"
+			sql_str += ")\n"
+			sql_str += sql_order_by_str
+			#print(60 * "=")
+			#print(sql_str)
+			#print(sql_w_vl)
 
-		# for count_only
-		count_column_id = "_COUNT"
-		if count_only:
-			sql_str = f"SELECT COUNT(*) AS {count_column_id} FROM ({sql_str})"
+			# for count_only
+			count_column_id = "_COUNT"
+			if count_only:
+				sql_str = f"SELECT COUNT(*) AS {count_column_id} FROM ({sql_str})"
 
-		data_type = TR_by_table[table]
-		try:
-			with self.con:
-				cur = self.con.cursor()
-				if len(sql_w_vl) == 0:
-					cur.execute(sql_str)
-				else:
-					cur.execute(sql_str, sql_w_vl)
-				if not count_only:
-					if not id_only:
-						cur.row_factory = row_factory_simple(data_type._make)
+			data_type = TR_by_table[table]
+			try:
+				with self.con:
+					cur = self.con.cursor()
+					if len(sql_w_vl) == 0:
+						cur.execute(sql_str)
 					else:
-						cur.row_factory = row_factory_simple(TR_id_only._make)
-					return list(cur.fetchall())
-				else:
-					c_l = list(cur.fetchall())
-					assert(len(c_l) == 1)
-					return c_l[0][count_column_id]
-		except:
-			raise Exception("retrieving data failed")
+						cur.execute(sql_str, sql_w_vl)
+					if not count_only:
+						if not id_only:
+							cur.row_factory = row_factory_simple(data_type._make)
+						else:
+							cur.row_factory = row_factory_simple(TR_id_only._make)
+						return list(cur.fetchall())
+					else:
+						c_l = list(cur.fetchall())
+						assert(len(c_l) == 1)
+						return c_l[0][count_column_id]
+			except:
+				raise Exception("retrieving data failed")
 
 	# raw sql query
 	def get_tablerecords_sql(self, sql, table = None):
@@ -595,56 +602,59 @@ class LogsDB:
 		# - is only allowed when database is in read-only mode
 		# if table name is provided, table record values are created from resulting rows
 		# otherwise a pair of column names and rows, all as simple lists
-		if not self.read_only:
-			raise Exception("only allowed in read-only mode")
 
-		data_type = None if table == None else TR_by_table[table]
+		with self.op_lock:
+			if not self.read_only:
+				raise Exception("only allowed in read-only mode")
 
-		sql_str = sql
-		assert(type(sql_str) == str)
+			data_type = None if table == None else TR_by_table[table]
 
-		try:
-			with self.con:
-				cur = self.con.cursor()
-				cur.execute(sql_str)
-				if data_type != None:
-					cur.row_factory = row_factory_simple(data_type._make)
-					return list(cur.fetchall())
-				else:
-					cur.row_factory = sl.Row
-					rows = cur.fetchall()
-					colnames = [d[0] for d in cur.description]
-					rowsprocd = [list(r) for r in rows]
-					return (colnames, rowsprocd)
-		except:
-			raise Exception("retrieving data failed")
+			sql_str = sql
+			assert(type(sql_str) == str)
+
+			try:
+				with self.con:
+					cur = self.con.cursor()
+					cur.execute(sql_str)
+					if data_type != None:
+						cur.row_factory = row_factory_simple(data_type._make)
+						return list(cur.fetchall())
+					else:
+						cur.row_factory = sl.Row
+						rows = cur.fetchall()
+						colnames = [d[0] for d in cur.description]
+						rowsprocd = [list(r) for r in rows]
+						return (colnames, rowsprocd)
+			except:
+				raise Exception("retrieving data failed")
 
 	def to_string(self, with_entries = False):
-		res = []
-		res.append(f"Tables (file: {self.database_file}, changes: {self.con.total_changes}):")
-		cur = self.con.cursor()
-		cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-		tables = list(map(lambda x: x["name"], cur.fetchall()))
-		for t in tables:
-			# skip sqlite internal tables
-			if t in ["sqlite_sequence"]:
-				continue
-			try:
-				TR_t = TR_by_table[t]
-			except KeyError:
-				raise Exception("unknown table: " + t)
-			cur.execute(f"SELECT * FROM {t}")
-			cur.row_factory = row_factory_simple(TR_t._make)
-			res_ = []
-			res_num = 0
-			for e in cur:
-				res_num += 1
-				if with_entries:
-					res_.append(f"  - {list(map(lambda x: e._asdict()[x], TR_t._fields))}")
-			res.append(f"- {t} ({res_num} entries)")
-			res.append(f"  {TR_t._fields}")
-			res += res_
-		return "\n".join(res)
+		with self.op_lock:
+			res = []
+			res.append(f"Tables (file: {self.database_file}, changes: {self.con.total_changes}):")
+			cur = self.con.cursor()
+			cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+			tables = list(map(lambda x: x["name"], cur.fetchall()))
+			for t in tables:
+				# skip sqlite internal tables
+				if t in ["sqlite_sequence"]:
+					continue
+				try:
+					TR_t = TR_by_table[t]
+				except KeyError:
+					raise Exception("unknown table: " + t)
+				cur.execute(f"SELECT * FROM {t}")
+				cur.row_factory = row_factory_simple(TR_t._make)
+				res_ = []
+				res_num = 0
+				for e in cur:
+					res_num += 1
+					if with_entries:
+						res_.append(f"  - {list(map(lambda x: e._asdict()[x], TR_t._fields))}")
+				res.append(f"- {t} ({res_num} entries)")
+				res.append(f"  {TR_t._fields}")
+				res += res_
+			return "\n".join(res)
 
 	def __str__(self):
 		return self.to_string()
