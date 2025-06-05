@@ -28,7 +28,7 @@ def get_embexp_ProgPlatform(embexp_arg):
 def get_default_branch(board_type):
 	assert board_type != None
 	assert board_type == "rpi3" or board_type == "rpi4"
-	return "scamv_" + board_type
+	return "master"
 
 def decide_branchname(branchname, board_type):
 	if branchname == None:
