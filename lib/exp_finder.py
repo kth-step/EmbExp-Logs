@@ -24,7 +24,7 @@ class NonPollingListIterator:
 
 
 class PollingIterator:
-	def __init__(self, genfun, genargs, poll_max_rounds = 5, poll_round_time = 60):
+	def __init__(self, genfun, genargs, poll_max_rounds = 100, poll_round_time = 60):
 		self.genfun = genfun
 		self.genargs = genargs
 
